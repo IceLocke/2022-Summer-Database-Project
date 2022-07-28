@@ -15,15 +15,16 @@ public class MyMajorService implements MajorService {
             PreparedStatement statement = conn.prepareStatement(sql);
             statement.setString(1, name);
             statement.setInt(2, departmentId);
-            statement.executeQuery();
+            statement.execute();
 
             sql = "select max(major_id) from majors";
             Statement s = conn.createStatement();
             ResultSet res = s.executeQuery(sql);
             res.next();
 
-            conn.commit();
-            return res.getInt(1);
+            int result = res.getInt(1);
+            conn.close();
+            return result;
         }
         catch (SQLException e) {
             e.printStackTrace();
@@ -52,8 +53,8 @@ public class MyMajorService implements MajorService {
             PreparedStatement s = conn.prepareStatement(sql);
             s.setInt(1, type);
             s.setString(2, courseId);
-            s.executeQuery();
-            conn.commit();
+            s.execute();
+            conn.close();
         }
         catch (SQLException e) {
             e.printStackTrace();

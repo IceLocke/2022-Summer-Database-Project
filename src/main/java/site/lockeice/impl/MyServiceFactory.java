@@ -1,14 +1,22 @@
 package site.lockeice.impl;
 
+import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.factory.ServiceFactory;
 import cn.edu.sustech.cs307.service.*;
 import site.lockeice.impl.service.*;
 
+import java.sql.SQLException;
 import java.util.List;
 
 public class MyServiceFactory extends ServiceFactory {
     public MyServiceFactory() {
         super();
+        try {
+            SQLDataSource.getInstance().getSQLConnection().setAutoCommit(false);
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        }
         registerService(CourseService.class, new MyCourseService());
         registerService(DepartmentService.class, new MyDepartmentService());
         registerService(InstructorService.class, new MyInstructorService());

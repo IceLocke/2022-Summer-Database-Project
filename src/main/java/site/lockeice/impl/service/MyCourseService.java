@@ -39,7 +39,7 @@ public class MyCourseService implements CourseService {
             statement.setString(6, mapper.writeValueAsString(prerequisite));
 
             statement.execute();
-            conn.commit();
+            conn.close();
         }
         catch (SQLException | JsonProcessingException e) {
             e.printStackTrace();
@@ -61,8 +61,8 @@ public class MyCourseService implements CourseService {
             statement.setInt(2, semesterId);
             statement.setString(3, sectionName);
             statement.setInt(4, totalCapacity);
-            statement.executeQuery();
-            conn.commit();
+            statement.execute();
+            
 
             String querySection = """
                         select max(class_id) from classes
@@ -72,7 +72,10 @@ public class MyCourseService implements CourseService {
             res.next();
 
             // sectionID
-            return res.getInt(1);
+            int result = res.getInt(1);
+            conn.close();
+
+            return result;
         }
         catch (SQLException e) {
             e.printStackTrace();
@@ -94,35 +97,37 @@ public class MyCourseService implements CourseService {
             PreparedStatement s1 = conn.prepareStatement(queryLocation);
             s1.setString(1, location);
             ResultSet res = s1.executeQuery();
-            int locationId = 0;
-            if (res.next())
-                locationId = res.getInt(1);
+            int locationId;
+            if (res.next()) {
+                System.out.println("Location %s exists, Id = %d".formatted(location, res.getInt(1)));
+            }
             else {
+                System.out.println("Adding new location %s".formatted(location));
+                String insertLocation = "insert into locations (location)" +
+                                        "values (?)";
+                PreparedStatement s3 = conn.prepareStatement(insertLocation);
+                s3.setString(1, location);
+                s3.execute();
                 String queryLocationCount =  "select max(location_id) from locations";
                 Statement s2 = conn.createStatement();
                 res = s2.executeQuery(queryLocationCount);
-                res.next(); locationId = res.getInt(1) + 1;
-
-                String insertLocation = "insert into locations (location_id, location)" +
-                                        "values (?, ?)";
-                PreparedStatement s3 = conn.prepareStatement(insertLocation);
-                s3.setInt(1, locationId);
-                s3.setString(2, location);
-                s3.executeQuery();
+                res.next();
             }
+            locationId = res.getInt(1);
 
             // add section class
             String addClass = """
                         insert into class_timetable
-                        (class_id, weekday, time_begin, time_end)
-                        values(?, ?, ?, ?)
+                        (class_id, weekday, time_begin, time_end, location_id)
+                        values(?, ?, ?, ?, ?)
                     """;
             PreparedStatement s4 = conn.prepareStatement(addClass);
             s4.setInt(1, sectionId);
             s4.setInt(2, dayOfWeek.getValue());
             s4.setInt(3, classStart);
             s4.setInt(4, classEnd);
-            s4.executeQuery();
+            s4.setInt(5, locationId);
+            s4.execute();
 
             String queryClassTTId = "select max(class_timetable_id) from class_timetable";
             Statement s5 = conn.createStatement();
@@ -136,7 +141,7 @@ public class MyCourseService implements CourseService {
             s6.setInt(1, classTTId);
             for (short week : weekList) {
                 s6.setInt(2, week);
-                s6.executeQuery();
+                s6.execute();
             }
 
             String addTeacher = "insert into class_teachers (class_timetable_id, teacher_id) " +
@@ -146,7 +151,7 @@ public class MyCourseService implements CourseService {
             s7.setInt(2, instructorId);
             s7.execute();
 
-            conn.commit();
+            conn.close();
             return classTTId;
         }
         catch (SQLException e) {
@@ -172,7 +177,21 @@ public class MyCourseService implements CourseService {
                     """;
             PreparedStatement s = conn.prepareStatement(deleteWeekList);
             s.setString(1, courseId);
-            s.executeQuery();
+            s.execute();
+
+            // delete teacher_class
+            String deleteClassTeacher = """
+                        delete from class_teachers ct
+                        where ct.class_timetable_id in (
+                            select ctt.class_timetable_id
+                            from class_timetable ctt
+                            join classes c on ctt.class_id = c.class_id
+                            where c.course_id = ?
+                        )
+                    """;
+            s = conn.prepareStatement(deleteClassTeacher);
+            s.setString(1, courseId);
+            s.execute();
 
             // delete class_timetable
             String deleteClassTimetable = """
@@ -186,7 +205,7 @@ public class MyCourseService implements CourseService {
                     """;
             s = conn.prepareStatement(deleteClassTimetable);
             s.setString(1, courseId);
-            s.executeQuery();
+            s.execute();
 
             // delete classes
             String deleteClass = """
@@ -195,7 +214,7 @@ public class MyCourseService implements CourseService {
                     """;
             s = conn.prepareStatement(deleteClass);
             s.setString(1, courseId);
-            s.executeQuery();
+            s.execute();
 
             // delete course
             String deleteCourse = """
@@ -204,9 +223,9 @@ public class MyCourseService implements CourseService {
                     """;
             s = conn.prepareStatement(deleteCourse);
             s.setString(1, courseId);
-            s.executeQuery();
+            s.execute();
 
-            conn.commit();
+            conn.close();
         }
         catch (SQLException e) {
             e.printStackTrace();
@@ -235,6 +254,8 @@ public class MyCourseService implements CourseService {
                     course.grading = Course.CourseGrading.PASS_OR_FAIL;
                 courses.add(course);
             }
+
+            conn.close();
             return courses;
         }
         catch (SQLException e) {

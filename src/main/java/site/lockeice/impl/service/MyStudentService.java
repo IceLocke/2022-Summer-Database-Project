@@ -16,7 +16,6 @@ import cn.edu.sustech.cs307.service.StudentService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jdk.incubator.foreign.SequenceLayout;
 
 import javax.annotation.Nullable;
 import java.sql.*;
@@ -39,11 +38,11 @@ public class MyStudentService implements StudentService {
             statement.setString(3, lastName);
             statement.setInt(4, majorId);
             statement.setDate(5, enrolledDate);
-            statement.executeQuery();
-            conn.commit();
+            statement.execute();
             conn.close();
         }
         catch (SQLException e) {
+            e.printStackTrace();
             throw new IntegrityViolationException();
         }
     }
@@ -172,16 +171,19 @@ public class MyStudentService implements StudentService {
             statement.setInt(2, studentId);
             res = statement.executeQuery();
             res.next();
+            conn.close();
             if (res.getInt(1) > 0) {
                 enrollResult = EnrollResult.COURSE_CONFLICT_FOUND;
                 return enrollResult;
             }
+
+            enrollResult = EnrollResult.SUCCESS;
+            return enrollResult;
         }
         catch (SQLException e) {
             e.printStackTrace();
             return EnrollResult.UNKNOWN_ERROR;
         }
-        return null;
     }
 
     @Override
@@ -196,8 +198,8 @@ public class MyStudentService implements StudentService {
             PreparedStatement statement = conn.prepareStatement(sql);
             statement.setInt(1, studentId);
             statement.setInt(2, sectionId);
-            statement.executeQuery();
-            conn.commit();
+            statement.execute();
+            conn.close();
         }
         catch (SQLException e) {
             e.printStackTrace();
@@ -224,8 +226,8 @@ public class MyStudentService implements StudentService {
             else if (grade.getClass() == HundredMarkGrade.class)
                 score = ((HundredMarkGrade) grade).mark;
             statement.setInt(3, score);
-            statement.executeQuery();
-            conn.commit();
+            statement.execute();
+            conn.close();
         }
         catch (SQLException e) {
             e.printStackTrace();
@@ -294,7 +296,7 @@ public class MyStudentService implements StudentService {
                 entry.location = res.getString("location");
                 courseTable.table.get(DayOfWeek.of(res.getInt("weekday"))).add(entry);
             }
-
+            conn.close();
             return courseTable;
         }
         catch (SQLException e) {
@@ -358,6 +360,7 @@ public class MyStudentService implements StudentService {
                 return true;
 
             // Calculate satisfaction of prerequisites
+            conn.close();
             return calculatePrerequisites(prerequisite, passedCourses);
         }
         catch (SQLException e) {

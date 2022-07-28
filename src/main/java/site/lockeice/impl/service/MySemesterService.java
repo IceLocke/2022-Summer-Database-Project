@@ -20,7 +20,7 @@ public class MySemesterService implements SemesterService {
             s.setString(1, name);
             s.setDate(2, begin);
             s.setDate(3, end);
-            s.executeQuery();
+            s.execute();
 
             String querySemId = "select max(semester_id) from semesters";
             Statement statement = conn.createStatement();
@@ -51,7 +51,7 @@ public class MySemesterService implements SemesterService {
                     """;
             PreparedStatement s = conn.prepareStatement(removeWeekList);
             s.setInt(1, semesterId);
-            s.executeQuery();
+            s.execute();
 
             // remove class timetable
             String removeClassTimetable = """
@@ -64,7 +64,7 @@ public class MySemesterService implements SemesterService {
                     """;
             s = conn.prepareStatement(removeClassTimetable);
             s.setInt(1, semesterId);
-            s.executeQuery();
+            s.execute();
 
             // remove classes
             String removeClass = """
@@ -73,7 +73,7 @@ public class MySemesterService implements SemesterService {
                     """;
             s = conn.prepareStatement(removeClass);
             s.setInt(1, semesterId);
-            s.executeQuery();
+            s.execute();
 
             // remove semester
             String removeSemester = """
@@ -82,9 +82,8 @@ public class MySemesterService implements SemesterService {
                     """;
             s = conn.prepareStatement(removeSemester);
             s.setInt(1, semesterId);
-            s.executeQuery();
-
-            conn.commit();
+            s.execute();
+            conn.close();
         }
         catch (SQLException e) {
             e.printStackTrace();
@@ -109,7 +108,7 @@ public class MySemesterService implements SemesterService {
                 sem.end = res.getDate(4);
                 semesters.add(sem);
             }
-
+            conn.close();
             return semesters;
         }
         catch (SQLException e) {

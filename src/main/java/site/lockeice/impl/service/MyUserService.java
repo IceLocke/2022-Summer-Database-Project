@@ -27,6 +27,7 @@ public class MyUserService implements UserService {
                     """;
             PreparedStatement s = conn.prepareStatement(removeWeekList);
             s.setInt(1, userId);
+            s.execute();
 
             // remove class_timetable
             String removeClassTimetable = """
@@ -40,6 +41,7 @@ public class MyUserService implements UserService {
                     """;
             s = conn.prepareStatement(removeClassTimetable);
             s.setInt(1, userId);
+            s.execute();
 
             // remove user
             String removeUser = """
@@ -48,6 +50,9 @@ public class MyUserService implements UserService {
                     """;
             s = conn.prepareStatement(removeUser);
             s.setInt(1, userId);
+            s.execute();
+
+            conn.close();
         }
         catch (SQLException e) {
             e.printStackTrace();
@@ -68,6 +73,7 @@ public class MyUserService implements UserService {
                 user.fullName = res.getString(2);
                 users.add(user);
             }
+            conn.close();
             return users;
         }
         catch (SQLException e) {

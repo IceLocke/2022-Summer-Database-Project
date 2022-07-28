@@ -18,9 +18,8 @@ public class MyInstructorService implements InstructorService {
             statement.setInt(1, userId);
             statement.setString(2, firstName);
             statement.setString(3, lastName);
-            statement.executeQuery();
-
-            conn.commit();
+            statement.execute();
+            conn.close();
         }
         catch (SQLException e) {
             e.printStackTrace();
