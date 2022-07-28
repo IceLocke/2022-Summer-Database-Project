@@ -70,7 +70,7 @@ public class MyCourseService implements CourseService {
             if (res.next())
                 locationId = res.getInt(1);
             else {
-                String queryLocationCount =  "select max(class_timetable_id) from locations";
+                String queryLocationCount =  "select max(location_id) from locations";
                 Statement s2 = conn.createStatement();
                 res = s2.executeQuery(queryLocationCount);
                 res.next(); locationId = res.getInt(1) + 1;
@@ -86,15 +86,14 @@ public class MyCourseService implements CourseService {
             // add section class
             String addClass = """
                         insert into class_timetable
-                        (class_id, teacher_id, weekday, time_begin, time_end)
-                        values(?, ?, ?, ?, ?)
+                        (class_id, weekday, time_begin, time_end)
+                        values(?, ?, ?, ?)
                     """;
             PreparedStatement s4 = conn.prepareStatement(addClass);
             s4.setInt(1, sectionId);
-            s4.setInt(2, instructorId);
-            s4.setInt(3, dayOfWeek.getValue());
-            s4.setInt(4, classStart);
-            s4.setInt(5, classEnd);
+            s4.setInt(2, dayOfWeek.getValue());
+            s4.setInt(3, classStart);
+            s4.setInt(4, classEnd);
             s4.executeQuery();
 
             String queryClassTTId = "select max(class_timetable_id) from class_timetable";
@@ -111,6 +110,13 @@ public class MyCourseService implements CourseService {
                 s6.setInt(2, week);
                 s6.executeQuery();
             }
+
+            String addTeacher = "insert into class_teachers (class_timetable_id, teacher_id) " +
+                                "values (?, ?)";
+            PreparedStatement s7 = conn.prepareStatement(addTeacher);
+            s7.setInt(1, classTTId);
+            s7.setInt(2, instructorId);
+            s7.execute();
 
             conn.commit();
             return classTTId;
