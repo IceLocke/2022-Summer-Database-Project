@@ -20,7 +20,7 @@ public class MyDepartmentService implements DepartmentService {
             Statement s = conn.createStatement();
             s.executeQuery(sql.formatted(name));
 
-            String queryCount = "select count(*) from departments";
+            String queryCount = "select max(dept_id) from departments";
             s = conn.createStatement();
             ResultSet res = s.executeQuery(queryCount);
             res.next();
@@ -43,6 +43,7 @@ public class MyDepartmentService implements DepartmentService {
             s.executeQuery(sql.formatted(departmentId));
 
             conn.commit();
+            return;
         }
         catch (SQLException e) {
             e.printStackTrace();

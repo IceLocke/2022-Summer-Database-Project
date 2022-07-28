@@ -37,7 +37,7 @@ public class MyCourseService implements CourseService {
             conn.commit();
 
             String querySection = """
-                        select count(*) from classes
+                        select max(class_id) from classes
                     """;
             Statement s = conn.createStatement();
             ResultSet res = s.executeQuery(querySection);
@@ -70,7 +70,7 @@ public class MyCourseService implements CourseService {
             if (res.next())
                 locationId = res.getInt(1);
             else {
-                String queryLocationCount =  "select count(*) from locations";
+                String queryLocationCount =  "select max(class_timetable_id) from locations";
                 Statement s2 = conn.createStatement();
                 res = s2.executeQuery(queryLocationCount);
                 res.next(); locationId = res.getInt(1) + 1;
@@ -97,7 +97,7 @@ public class MyCourseService implements CourseService {
             s4.setInt(5, classEnd);
             s4.executeQuery();
 
-            String queryClassTTId = "select count(*) from class_timetable";
+            String queryClassTTId = "select max(class_timetable_id) from class_timetable";
             Statement s5 = conn.createStatement();
             res = s5.executeQuery(queryClassTTId);
             res.next();
