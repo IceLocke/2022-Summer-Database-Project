@@ -156,8 +156,8 @@ public class MyCourseService implements CourseService {
         }
         catch (SQLException e) {
             e.printStackTrace();
-            throw new IntegrityViolationException();
         }
+        return 0;
     }
 
     @Override
