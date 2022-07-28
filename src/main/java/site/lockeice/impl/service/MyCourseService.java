@@ -5,10 +5,13 @@ import cn.edu.sustech.cs307.dto.Course;
 import cn.edu.sustech.cs307.dto.prerequisite.Prerequisite;
 import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.CourseService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.annotation.Nullable;
 import java.sql.*;
 import java.time.DayOfWeek;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -16,7 +19,32 @@ public class MyCourseService implements CourseService {
     @Override
     public void addCourse(String courseId, String courseName, int credit,
                           int classHour, Course.CourseGrading grading, @Nullable Prerequisite prerequisite) {
+        try {
+            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+            String sql = """
+                        insert into courses
+                        (course_id, course_name, credit, hour, grading, prerequisite) 
+                        values (?, ?, ?, ?, ?, ?)
+                    """;
+            PreparedStatement statement = conn.prepareStatement(sql);
+            statement.setString(1, courseId);
+            statement.setString(2, courseName);
+            statement.setInt(3, credit);
+            statement.setInt(4, classHour);
+            switch (grading) {
+                case HUNDRED_MARK_SCORE -> statement.setString(5, "HM");
+                case PASS_OR_FAIL -> statement.setString(5, "PF");
+            }
+            ObjectMapper mapper = new ObjectMapper();
+            statement.setString(6, mapper.writeValueAsString(prerequisite));
 
+            statement.execute();
+            conn.commit();
+        }
+        catch (SQLException | JsonProcessingException e) {
+            e.printStackTrace();
+            throw new IntegrityViolationException();
+        }
     }
 
     @Override
@@ -187,6 +215,31 @@ public class MyCourseService implements CourseService {
 
     @Override
     public List<Course> getAllCourses() {
+        try {
+            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+            String sql = """
+                    select (course_id, course_name, credit, hour, grading) from courses
+                    """;
+            Statement statement = conn.createStatement();
+            ResultSet res = statement.executeQuery(sql);
+            ArrayList courses = new ArrayList<Course>();
+            while (res.next()) {
+                Course course = new Course();
+                course.id = res.getString(1);
+                course.name = res.getString(2);
+                course.credit = res.getInt(3);
+                course.classHour = res.getInt(4);
+                if (res.getString(5).equals("HM"))
+                    course.grading = Course.CourseGrading.HUNDRED_MARK_SCORE;
+                else if (res.getString(6).equals("PF"))
+                    course.grading = Course.CourseGrading.PASS_OR_FAIL;
+                courses.add(course);
+            }
+            return courses;
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        }
         return null;
     }
 }

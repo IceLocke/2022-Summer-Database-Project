@@ -3,15 +3,26 @@ package site.lockeice.impl.service;
 import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.dto.CourseSearchEntry;
 import cn.edu.sustech.cs307.dto.CourseTable;
+import cn.edu.sustech.cs307.dto.Instructor;
 import cn.edu.sustech.cs307.dto.grade.Grade;
 import cn.edu.sustech.cs307.dto.grade.HundredMarkGrade;
 import cn.edu.sustech.cs307.dto.grade.PassOrFailGrade;
+import cn.edu.sustech.cs307.dto.prerequisite.AndPrerequisite;
+import cn.edu.sustech.cs307.dto.prerequisite.CoursePrerequisite;
+import cn.edu.sustech.cs307.dto.prerequisite.OrPrerequisite;
+import cn.edu.sustech.cs307.dto.prerequisite.Prerequisite;
 import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.StudentService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jdk.incubator.foreign.SequenceLayout;
 
 import javax.annotation.Nullable;
 import java.sql.*;
 import java.time.DayOfWeek;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 public class MyStudentService implements StudentService {
@@ -223,10 +234,139 @@ public class MyStudentService implements StudentService {
 
     @Override
     public CourseTable getCourseTable(int studentId, Date date) {
+        try {
+            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+            CourseTable courseTable = new CourseTable();
+
+            // Verify week in certain semester
+            String sql = """
+                    with semester as (
+                        select semester_id, semester_begin, semester_end
+                        from semesters
+                        where semester_begin <= ? and semester_end >= ?
+                    )
+                    , query_week as (
+                        select (
+                            select week
+                            from class_week_list
+                            where ((select semester_begin from semester) + interval (week - 1) || ' week') <= ? and 
+                                  ((select semester_end from semester)   + interval (week - 1) || ' week') >= ?
+                        )
+                    )
+                    select course_name, class_name, 
+                           teacher_id, (first_name || ' ' || last_name) as full_name,
+                           weekday, time_begin, time_end,
+                           location
+                    from courses c
+                    join classes c2 on c.course_id = c2.course_id
+                    join class_timetable ct on c2.class_id = ct.class_id
+                    join class_week_list cwl on ct.class_timetable_id = cwl.class_timetable_id
+                    join locations l on ct.location_id = l.location_id
+                    join class_teachers t on ct.class_timetable_id = t.class_timetable_id
+                    join teachers t2 on t.teacher_id = t2.user_id
+                    join course_select cs on c2.class_id = cs.class_id
+                    where c2.semester_id = (select semester_id from semester) and
+                          cwl.week = (select week from query_week) and
+                          cs.sid = ?
+                    """;
+            PreparedStatement statement = conn.prepareStatement(sql);
+            statement.setDate(1, date);
+            statement.setDate(2, date);
+            statement.setDate(3, date);
+            statement.setDate(4, date);
+            statement.setInt(5, studentId);
+            ResultSet res = statement.executeQuery();
+
+            // init table
+            for (DayOfWeek dayOfWeek : DayOfWeek.values())
+                courseTable.table.put(dayOfWeek, new HashSet<CourseTable.CourseTableEntry>());
+
+            while (res.next()) {
+                CourseTable.CourseTableEntry entry = new CourseTable.CourseTableEntry();
+                entry.courseFullName = String.format("%s[%s]", res.getString("course_name"),
+                                                               res.getString("class_name"));
+                Instructor instructor = new Instructor();
+                instructor.id = res.getInt("teacher_id");
+                instructor.fullName = res.getString("full_name");
+                entry.instructor = instructor;
+                entry.classBegin = res.getShort("time_begin");
+                entry.classEnd = res.getShort("time_end");
+                entry.location = res.getString("location");
+                courseTable.table.get(DayOfWeek.of(res.getInt("weekday"))).add(entry);
+            }
+
+            return courseTable;
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        }
         return null;
     }
 
+    private boolean calculatePrerequisites(Prerequisite node, ArrayList<String> passedCourses) {
+        if (node.getClass().equals(CoursePrerequisite.class)) {
+            if ((passedCourses.contains(((CoursePrerequisite) node).courseID)))
+                return true;
+            else
+                return false;
+        }
+        if (node.getClass().equals(OrPrerequisite.class)) {
+            boolean result = false;
+            for (Prerequisite son : ((OrPrerequisite) node).terms)
+                result = result | calculatePrerequisites(son, passedCourses);
+            return result;
+        }
+        if (node.getClass().equals(AndPrerequisite.class)) {
+            boolean result = true;
+            for (Prerequisite son : ((AndPrerequisite) node).terms)
+                result = result & calculatePrerequisites(son, passedCourses);
+            return result;
+        }
+        return false;
+    }
+
     public boolean passedPrerequisitesForCourse(int studentId, String course_id) {
+        try {
+            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+            ArrayList<String> passedCourses = new ArrayList<>();
+            
+            // Get student passed courses
+            String queryPassedCourses = """
+                       select distinct c.course_id
+                       from course_select cs
+                       join classes c on cs.class_id = c.class_id
+                       where cs.grade >= 60 and cs.grade is not null
+                    """;
+            PreparedStatement statement = conn.prepareStatement(queryPassedCourses);
+            ResultSet res = statement.executeQuery();
+            while (res.next())
+                passedCourses.add(res.getString(1));
+
+            // Get prerequisites instance
+            String queryPrerequisite = """
+                        select prerequisite from courses where course_id = ? and prerequisite is not null
+                    """;
+            Prerequisite prerequisite = null;
+            statement = conn.prepareStatement(queryPrerequisite);
+            statement.setString(1, course_id);
+            res = statement.executeQuery();
+            if (res.next()) {
+                ObjectMapper mapper = new ObjectMapper();
+                prerequisite = mapper.readValue(res.getString(1), Prerequisite.class);
+            }
+            else
+                return true;
+
+            // Calculate satisfaction of prerequisites
+            return calculatePrerequisites(prerequisite, passedCourses);
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        } catch (JsonMappingException e) {
+            throw new RuntimeException(e);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
         return true;
     }
 }

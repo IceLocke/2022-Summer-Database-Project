@@ -8,6 +8,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 
 public class MyDepartmentService implements DepartmentService {
@@ -52,6 +53,23 @@ public class MyDepartmentService implements DepartmentService {
 
     @Override
     public List<Department> getAllDepartments() {
+        try {
+            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+            String sql = "select (dept_id, department) from departments";
+            Statement s = conn.createStatement();
+            ResultSet res = s.executeQuery(sql);
+            ArrayList<Department> departments = new ArrayList<Department>();
+            while (res.next()) {
+                Department dept = new Department();
+                dept.id = res.getInt(1);
+                dept.name = res.getString(2);
+                departments.add(dept);
+            }
+            return departments;
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        }
         return null;
     }
 }
