@@ -115,15 +115,16 @@ public class MyStudentService implements StudentService {
             statement.setInt(1, sectionId);
             statement.setInt(2, studentId);
             res = statement.executeQuery();
-            res.next();
-            if (res.getInt(1) >= 60) {
-                enrollResult = EnrollResult.ALREADY_PASSED;
-                return enrollResult;
+            if (res.next()) {
+                if (res.getInt(1) >= 60) {
+                    enrollResult = EnrollResult.ALREADY_PASSED;
+                    return enrollResult;
+                }
             }
 
             // PRE...NOT
             String sql4 = """
-                        select cr.dept_id || cr.course_id_suffix as cid
+                        select cr.course_id as cid
                         from classes c
                         join courses cr on c.course_id = cr.course_id
                         where class_id = ?
