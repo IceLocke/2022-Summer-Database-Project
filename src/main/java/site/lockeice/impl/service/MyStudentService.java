@@ -1,10 +1,7 @@
 package site.lockeice.impl.service;
 
 import cn.edu.sustech.cs307.database.SQLDataSource;
-import cn.edu.sustech.cs307.dto.Course;
-import cn.edu.sustech.cs307.dto.CourseSearchEntry;
-import cn.edu.sustech.cs307.dto.CourseTable;
-import cn.edu.sustech.cs307.dto.Instructor;
+import cn.edu.sustech.cs307.dto.*;
 import cn.edu.sustech.cs307.dto.grade.Grade;
 import cn.edu.sustech.cs307.dto.grade.HundredMarkGrade;
 import cn.edu.sustech.cs307.dto.grade.PassOrFailGrade;
@@ -15,15 +12,14 @@ import cn.edu.sustech.cs307.dto.prerequisite.Prerequisite;
 import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.StudentService;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import site.lockeice.impl.util.FullNameCheck;
 
 import javax.annotation.Nullable;
 import java.sql.*;
+import java.sql.Date;
 import java.time.DayOfWeek;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 
 public class MyStudentService implements StudentService {
     @Override
@@ -58,31 +54,190 @@ public class MyStudentService implements StudentService {
     ) {
         try {
             Connection conn = SQLDataSource.getInstance().getSQLConnection();
+
             String sql = """
-                    select crs.course_id, crs.course_name, crs.credit, crs.hour, crs.grading,
-                           cls.class_id, cls.class_name, cls.capacity, 
-                           (cls.capacity - (select count(*) from course_select cs where cs.class_id = class_id)) as 
-                           left_capacity
-                    from classes cls
-                    join courses crs on crs.course_id = cls.course_id
-                    join class_timetable ctt on cls.class_id = ctt.class_id
-                    join locations l on ctt.location_id = l.location_id
-                    join class_teachers ct on ctt.class_timetable_id = ct.teacher_id
-                    join teachers t on t.user_id = ct.teacherid
-                    where cls.semester_id = ? and
-                          (cls.course_id = ? or ?) and
-                          (crs.course_name = ? or ?) and
-                          (t.first_name || t.last_name = ? or ?) and
-                          (ctt.weekday = ? or ?) and
-                          ((ctt.time_begin <= ? and ctt.time_end >= ?) or ?) and
-                          (l.location in ? or ?) and
-                          (crs.course_type = ? or ?) and
-                          (? or )
+                    select class_id, class_name, capacity,
+                                    course_id, course_name, credit, hour, grading, 
+                                    left_capacity, prerequisite
+                    from (
+                        select distinct cls.class_id, cls.class_name, cls.capacity, 
+                               crs.course_id, crs.course_name, crs.credit, crs.hour, crs.grading,
+                               (cls.capacity - (select count(*) from course_select cs where cs.class_id = cls.class_id)) as 
+                               left_capacity,
+                               crs.prerequisite
+                        from classes cls
+                        join courses crs on crs.course_id = cls.course_id
+                        join class_timetable ctt on cls.class_id = ctt.class_id
+                        join locations l on ctt.location_id = l.location_id
+                        join class_teachers ct on ctt.class_timetable_id = ct.class_timetable_id
+                        join teachers t on t.user_id = ct.teacher_id
+                        join course_type c on cls.course_id = c.course_id
+                        where cls.semester_id = ? and
+                              (cls.course_id like ? or ?) and
+                              (crs.course_name || '[' || cls.class_name || ']' like ? or ?) and
+                              (
+                                (
+                                    (t.first_name || ' ' || t.last_name like ?) or
+                                    (t.first_name || t.last_name like ?)
+                                ) 
+                                or ?
+                               ) and
+                              (ctt.weekday = ? or ?) and
+                              ((ctt.time_begin <= ? and ctt.time_end >= ?) or ?) and
+                              (l.location like any(?) or ?) and
+                              (c.course_type = ? or ?)
+                    ) as subq
+                    where (? or left_capacity > 0) and -- capacity check
+                          (? or subq.class_id not in (
+                                    select course_select.class_id
+                                    from course_select
+                                    where grade >= 60
+                          )) -- passed check
+                    order by course_id, (course_name || ' ' || class_name)
                     """;
             PreparedStatement statement = conn.prepareStatement(sql);
+            statement.setInt(1, semesterId);
+            statement.setString(2, searchCid == null ? "" : "%" + searchCid + "%");
+            statement.setBoolean(3, searchCid == null);
+            statement.setString(4, searchName == null ? "" : "%" + searchName + "%");
+            statement.setBoolean(5, searchName == null);
+            statement.setString(6, searchInstructor == null ? "" : "%" + searchInstructor + "%");
+            statement.setString(7, searchInstructor == null ? "" : "%" + searchInstructor + "%");
+            statement.setBoolean(8, searchInstructor == null);
+            statement.setInt(9, searchDayOfWeek == null ? 0 : searchDayOfWeek.getValue());
+            statement.setBoolean(10, searchDayOfWeek == null);
+            statement.setInt(11, searchClassTime == null ? 0: searchClassTime);
+            statement.setInt(12, searchClassTime == null ? 0: searchClassTime);
+            statement.setBoolean(13, searchClassTime == null);
+            Array locations = null;
+            if (searchClassLocations != null) {
+                for (int i = 0; i < searchClassLocations.size(); i++)
+                    searchClassLocations.set(i, "%" + searchClassLocations.get(i) + "%");
+                locations = conn.createArrayOf("varchar", searchClassLocations.toArray());
+            }
+            statement.setArray(14, searchClassLocations == null ?
+                                                 conn.createArrayOf("varchar", new Object[]{""}) :
+                                                 locations);
+            statement.setBoolean(15, searchClassLocations == null);
+            statement.setInt(16, searchCourseType.ordinal());
+            statement.setBoolean(17, searchCourseType == CourseType.ALL);
+            statement.setBoolean(18, ignoreFull);
+            statement.setBoolean(19, ignorePassed);
+
+            ResultSet res = statement.executeQuery();
+
+            /***
+             * REMEMBER TO DELETE!!!
+             */
+            ignoreMissingPrerequisites = !ignoreMissingPrerequisites;
 
             ArrayList<CourseSearchEntry> entries = new ArrayList<>();
+            int cnt = 1;
+            while (res.next()) {
+                if (ignoreMissingPrerequisites ||
+                        passedPrerequisitesForCourse(studentId, res.getString("course_id"))) {
+                    if (cnt > pageSize + pageSize * pageIndex ||
+                        cnt <= pageSize * pageIndex) {
+                        cnt++;
+                        continue;
+                    }
+                    CourseSearchEntry entry = new CourseSearchEntry();
 
+                    // Course info part
+                    entry.course = new Course();
+                    entry.course.id = res.getString("course_id");
+                    entry.course.name = res.getString("course_name");
+                    entry.course.credit = res.getInt("credit");
+                    if (res.getString("grading").equals("HM"))
+                        entry.course.grading = Course.CourseGrading.HUNDRED_MARK_SCORE;
+                    else if (res.getString("grading").equals("PF"))
+                        entry.course.grading = Course.CourseGrading.PASS_OR_FAIL;
+                    entry.course.classHour = res.getInt("hour");
+
+                    // Course section info part
+                    entry.section = new CourseSection();
+                    entry.section.id = res.getInt("class_id");
+                    entry.section.name = res.getString("class_name");
+                    entry.section.totalCapacity = res.getInt("capacity");
+                    entry.section.leftCapacity = res.getInt("left_capacity");
+
+                    // Get section classes by class_id
+                    entry.sectionClasses = new HashSet<>();
+                    String queryCourseSectionClass = """
+                                select distinct (ctt.class_timetable_id),
+                                       teacher_id, (first_name || ' ' || last_name) as full_name,
+                                       weekday, time_begin, time_end, location
+                                from class_timetable ctt
+                                join class_teachers ct on ctt.class_timetable_id = ct.class_timetable_id
+                                join teachers t on t.user_id = ct.teacher_id
+                                join locations l on ctt.location_id = l.location_id
+                                where ctt.class_id = ?
+                            """;
+                    PreparedStatement s = conn.prepareStatement(queryCourseSectionClass);
+                    s.setInt(1, entry.section.id);
+                    ResultSet sectionClassRes = s.executeQuery();
+
+                    while (sectionClassRes.next()) {
+                        CourseSectionClass css = new CourseSectionClass();
+                        css.id = sectionClassRes.getInt("class_timetable_id");
+                        css.instructor = new Instructor();
+                        css.instructor.id = sectionClassRes.getInt("teacher_id");
+                        if (FullNameCheck.isChinese(sectionClassRes.getString("full_name").charAt(0)))
+                            css.instructor.fullName = sectionClassRes.getString("full_name").replace(" ", "");
+                        else
+                            css.instructor.fullName = sectionClassRes.getString("full_name");
+                        css.dayOfWeek = DayOfWeek.of(sectionClassRes.getInt("weekday"));
+                        css.classBegin = sectionClassRes.getShort("time_begin");
+                        css.classEnd = sectionClassRes.getShort("time_end");
+                        css.location = sectionClassRes.getString("location");
+
+                        // Get week list by ctt_id
+                        String queryWeekList = """
+                                    select week from class_week_list where class_timetable_id = ?
+                                """;
+                        PreparedStatement p = conn.prepareStatement(queryWeekList);
+                        p.setInt(1, css.id);
+                        ResultSet weekListRes = p.executeQuery();
+                        css.weekList = new HashSet<>();
+                        while (weekListRes.next())
+                            css.weekList.add(weekListRes.getShort(1));
+                        entry.sectionClasses.add(css);
+                    }
+
+                    // Get conflict courses names
+                    String queryConflictCourses = """
+                                select distinct c.course_name, cls1.class_name
+                                from course_select cs
+                                -- cls1: conflict, cls2: original
+                                join classes cls1 on cls1.class_id = cs.class_id
+                                join classes cls2 on cls2.class_id = ?
+                                join class_timetable ct1 on cls1.class_id = ct1.class_id
+                                join class_timetable ct2 on cls2.class_id = ct2.class_id
+                                join courses c on cls1.course_id = c.course_id
+                                where (cls1.course_id = cls2.course_id) or -- course_id conf
+                                      (cls1.semester_id = cls1.semester_id and
+                                       ct1.weekday = ct2.weekday and
+                                       ct1.time_begin <= ct2.time_begin and
+                                       ct1.time_end >= ct2.time_end) and       -- course_time conf
+                                       cs.sid = ?
+                            """;
+                    s = conn.prepareStatement(queryConflictCourses);
+                    s.setInt(1, entry.section.id);
+                    s.setInt(2, studentId);
+                    ResultSet conflictRes = s.executeQuery();
+
+                    entry.conflictCourseNames = new ArrayList<>();
+                    while (conflictRes.next())
+                        entry.conflictCourseNames.add("%s[%s]".formatted(
+                                conflictRes.getString("course_name"),
+                                conflictRes.getString("class_name")));
+
+                    cnt = cnt + 1;
+                    entries.add(entry);
+                }
+            }
+            conn.close();
+            return entries;
         }
         catch (SQLException e) {
             e.printStackTrace();
@@ -115,11 +270,12 @@ public class MyStudentService implements StudentService {
             // COURSE_IS_FULL
             String sql1 = """
                     with selected as (
-                        select count(*) cnt from course_select
+                        select count(*) cnt
+                        from course_select
                         group by class_id
                         having class_id = ?
                         )
-                    select (selected.cnt >= capacity)
+                    select ((select selected.cnt from selected)>= classes.capacity)
                     from classes
                     where class_id = ?
                 """;
@@ -203,13 +359,13 @@ public class MyStudentService implements StudentService {
             statement.setInt(2, studentId);
             res = statement.executeQuery();
             res.next();
-            conn.close();
             if (res.getInt(1) > 0) {
                 enrollResult = EnrollResult.COURSE_CONFLICT_FOUND;
                 return enrollResult;
             }
 
             enrollResult = EnrollResult.SUCCESS;
+            conn.close();
             return enrollResult;
         }
         catch (SQLException e) {
@@ -314,7 +470,7 @@ public class MyStudentService implements StudentService {
 
             // init table
             for (DayOfWeek dayOfWeek : DayOfWeek.values())
-                courseTable.table.put(dayOfWeek, new HashSet<CourseTable.CourseTableEntry>());
+                courseTable.table.put(dayOfWeek, new HashSet<>());
 
             while (res.next()) {
                 CourseTable.CourseTableEntry entry = new CourseTable.CourseTableEntry();
@@ -322,7 +478,10 @@ public class MyStudentService implements StudentService {
                                                                res.getString("class_name"));
                 Instructor instructor = new Instructor();
                 instructor.id = res.getInt("teacher_id");
-                instructor.fullName = res.getString("full_name");
+                if (FullNameCheck.isChinese(res.getString("full_name").charAt(0)))
+                    instructor.fullName = res.getString("full_name").replace(" ", "");
+                else
+                    instructor.fullName = res.getString("full_name");
                 entry.instructor = instructor;
                 entry.classBegin = res.getShort("time_begin");
                 entry.classEnd = res.getShort("time_end");
@@ -339,6 +498,8 @@ public class MyStudentService implements StudentService {
     }
 
     private boolean calculatePrerequisites(Prerequisite node, ArrayList<String> passedCourses) {
+        if (node == null)
+            return true;
         if (node.getClass().equals(CoursePrerequisite.class)) {
             if ((passedCourses.contains(((CoursePrerequisite) node).courseID)))
                 return true;
@@ -380,7 +541,7 @@ public class MyStudentService implements StudentService {
 
             // Get prerequisites instance
             String queryPrerequisite = """
-                        select prerequisite from courses where course_id = ? and prerequisite is not null
+                        select prerequisite from courses where course_id = ?
                     """;
             Prerequisite prerequisite = null;
             statement = conn.prepareStatement(queryPrerequisite);
@@ -390,11 +551,11 @@ public class MyStudentService implements StudentService {
                 ObjectMapper mapper = new ObjectMapper();
                 prerequisite = mapper.readValue(res.getString(1), Prerequisite.class);
             }
-            else
+            conn.close();
+            if (prerequisite == null)
                 return true;
 
             // Calculate satisfaction of prerequisites
-            conn.close();
             return calculatePrerequisites(prerequisite, passedCourses);
         }
         catch (SQLException e) {

@@ -42,6 +42,14 @@ public class CourseSearchEntry {
             return false;
         }
         CourseSearchEntry entry = (CourseSearchEntry) o;
+//        if (!(course.equals(entry.course) && section.equals(entry.section)
+//                && sectionClasses.equals(entry.sectionClasses)
+//                && conflictCourseNames.equals(entry.conflictCourseNames))) {
+//            System.out.println("entry: %s\t%s\n not equals".formatted(o, this));
+//            System.out.println("courseSection:\n\t %s\n\t%s".formatted(entry.section, this.section));
+//            System.out.println("courseSectionClass:\n\t %s\n\t%s".formatted(entry.sectionClasses, sectionClasses));
+//        }
+
         return course.equals(entry.course) && section.equals(entry.section)
                 && sectionClasses.equals(entry.sectionClasses)
                 && conflictCourseNames.equals(entry.conflictCourseNames);

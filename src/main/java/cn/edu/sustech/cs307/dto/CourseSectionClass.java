@@ -30,6 +30,17 @@ public class CourseSectionClass {
             return false;
         }
         CourseSectionClass that = (CourseSectionClass) o;
+//        if (classBegin != that.classBegin)
+//            System.out.println("%d %d class begin not equals".formatted(id, that.id));
+//        if (classEnd != that.classEnd)
+//            System.out.println("%d %d class end not equals".formatted(id, that.id));
+//        if (!instructor.equals(that.instructor)) {
+//            System.out.println("%d %d class instructor not equals \n %s \n %s".formatted(id, that.id, instructor, that.instructor));
+//        }
+//        if (dayOfWeek != that.dayOfWeek)
+//            System.out.println("%d %d dayOfWeek not equals".formatted(id, that.id));
+//        if (!location.equals(that.location))
+//            System.out.println("%d %d dayOfWeek not equals".formatted(id, that.id));
         return id == that.id && classBegin == that.classBegin && classEnd == that.classEnd &&
                 instructor.equals(that.instructor) && dayOfWeek == that.dayOfWeek && weekList.equals(that.weekList) &&
                 location.equals(that.location);

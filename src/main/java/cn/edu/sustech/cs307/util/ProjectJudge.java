@@ -1,6 +1,7 @@
 package cn.edu.sustech.cs307.util;
 
 import cn.edu.sustech.cs307.config.Config;
+import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.dto.*;
 import cn.edu.sustech.cs307.dto.grade.Grade;
 import cn.edu.sustech.cs307.dto.prerequisite.Prerequisite;
@@ -10,7 +11,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
 import java.sql.Date;
+import java.sql.Statement;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -209,11 +212,31 @@ public final class ProjectJudge {
                 || !userService.getAllUsers().isEmpty()) {
             System.out.println("Database is not empty! Trying to truncate all your tables.");
             try {
-                courseService.getAllCourses().parallelStream().forEach(it -> courseService.removeCourse(it.id));
-                departmentService.getAllDepartments().parallelStream()
-                        .forEach(it -> departmentService.removeDepartment(it.id));
-                semesterService.getAllSemesters().parallelStream().forEach(it -> semesterService.removeSemester(it.id));
-                userService.getAllUsers().parallelStream().forEach(it -> userService.removeUser(it.id));
+                String sql = """
+                        truncate table class_teachers cascade;                     
+                        truncate table class_week_list cascade;                      
+                        truncate table class_timetable cascade;                              
+                        truncate table course_select cascade;                           
+                        truncate table classes cascade;                               
+                        truncate table courses cascade;                          
+                        truncate table locations cascade;                            
+                        truncate table students cascade;                                 
+                        truncate table ad_classes cascade;                                 
+                        truncate table majors cascade;              
+                        truncate table departments cascade;            
+                        truncate table teachers cascade;                 
+                        truncate table semesters cascade;
+                        ALTER SEQUENCE class_timetable_class_timetable_id_seq RESTART WITH 1;
+                        ALTER SEQUENCE classes_class_id_seq RESTART WITH 1;
+                        ALTER SEQUENCE departments_dept_id_seq RESTART WITH 1;
+                        ALTER SEQUENCE locations_location_id_seq RESTART WITH 1;
+                        ALTER SEQUENCE majors_major_id_seq RESTART WITH 1;
+                        alter sequence semesters_semester_id_seq restart  with 1;
+                        alter sequence  teachers_teacher_id_seq restart with 1;                        
+                        """;
+                Connection conn = SQLDataSource.getInstance().getSQLConnection();
+                Statement s = conn.createStatement();
+                s.execute(sql);
             } catch (Throwable t) {
                 System.out.println("Failed to truncate database.");
                 t.printStackTrace();
@@ -255,6 +278,7 @@ public final class ProjectJudge {
         endTimeNs = System.nanoTime();
         System.out.printf("Import time usage: %.2fs\n", (endTimeNs - startTimeNs) / 1000000000.0);
         // 2. Test searchCourse1
+        System.out.println("Start test searchCourse1");
         EvalResult searchCourse1 = testSearchCourses(searchCourse1Dir);
         System.out.println("Test search course 1: " + searchCourse1.passCount.get());
         System.out.printf("Test search course 1 time: %.2fs\n", searchCourse1.elapsedTimeNs.get() / 1000000000.0);

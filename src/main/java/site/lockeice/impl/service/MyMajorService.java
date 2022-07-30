@@ -46,13 +46,15 @@ public class MyMajorService implements MajorService {
         try {
             Connection conn = SQLDataSource.getInstance().getSQLConnection();
             String sql = """
-                        update courses
-                        set course_type = ?
-                        where course_id = ?
+                        insert into
+                        course_type
+                        (course_id, course_type, dept_id) 
+                        values (?, ?, ?)
                     """;
             PreparedStatement s = conn.prepareStatement(sql);
-            s.setInt(1, type);
-            s.setString(2, courseId);
+            s.setString(1, courseId);
+            s.setInt(2, type);
+            s.setInt(3, 0);
             s.execute();
             conn.close();
         }

@@ -5,6 +5,7 @@ import cn.edu.sustech.cs307.dto.Course;
 import cn.edu.sustech.cs307.dto.prerequisite.Prerequisite;
 import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.CourseService;
+import cn.edu.sustech.cs307.service.StudentService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -39,6 +40,16 @@ public class MyCourseService implements CourseService {
             statement.setString(6, mapper.writeValueAsString(prerequisite));
 
             statement.execute();
+
+            String addCourseType = """
+                        insert into course_type
+                        (course_id, course_type)
+                        values (?, ?)
+                    """;
+            statement = conn.prepareStatement(addCourseType);
+            statement.setString(1, courseId);
+            statement.setInt(2, StudentService.CourseType.ALL.ordinal());
+            statement.execute();
             conn.close();
         }
         catch (SQLException | JsonProcessingException e) {
@@ -62,13 +73,17 @@ public class MyCourseService implements CourseService {
             statement.setString(3, sectionName);
             statement.setInt(4, totalCapacity);
             statement.execute();
-            
 
             String querySection = """
-                        select max(class_id) from classes
+                        select max(class_id) 
+                        from classes cls
+                        join courses c on c.course_id = cls.course_id
+                        where class_name = ? and c.course_id = ?
                     """;
-            Statement s = conn.createStatement();
-            ResultSet res = s.executeQuery(querySection);
+            PreparedStatement s = conn.prepareStatement(querySection);
+            s.setString(1, sectionName);
+            s.setString(2, courseId);
+            ResultSet res = s.executeQuery();
             res.next();
 
             // sectionID
@@ -99,18 +114,16 @@ public class MyCourseService implements CourseService {
             ResultSet res = s1.executeQuery();
             int locationId;
             if (res.next()) {
-                System.out.println("Location %s exists, Id = %d".formatted(location, res.getInt(1)));
             }
             else {
-                System.out.println("Adding new location %s".formatted(location));
                 String insertLocation = "insert into locations (location)" +
                                         "values (?)";
                 PreparedStatement s3 = conn.prepareStatement(insertLocation);
                 s3.setString(1, location);
                 s3.execute();
-                String queryLocationCount =  "select max(location_id) from locations";
+                String queryLocationCount =  "select location_id from locations where location = '%s'";
                 Statement s2 = conn.createStatement();
-                res = s2.executeQuery(queryLocationCount);
+                res = s2.executeQuery(queryLocationCount.formatted(location));
                 res.next();
             }
             locationId = res.getInt(1);
@@ -129,7 +142,7 @@ public class MyCourseService implements CourseService {
             s4.setInt(5, locationId);
             s4.execute();
 
-            String queryClassTTId = "select max(class_timetable_id) from class_timetable";
+            String queryClassTTId = "select currval(pg_get_serial_sequence('class_timetable', 'class_timetable_id'))";
             Statement s5 = conn.createStatement();
             res = s5.executeQuery(queryClassTTId);
             res.next();
@@ -237,7 +250,7 @@ public class MyCourseService implements CourseService {
         try {
             Connection conn = SQLDataSource.getInstance().getSQLConnection();
             String sql = """
-                    select (course_id, course_name, credit, hour, grading) from courses
+                    select course_id, course_name, credit, hour, grading from courses
                     """;
             Statement statement = conn.createStatement();
             ResultSet res = statement.executeQuery(sql);
@@ -250,7 +263,7 @@ public class MyCourseService implements CourseService {
                 course.classHour = res.getInt(4);
                 if (res.getString(5).equals("HM"))
                     course.grading = Course.CourseGrading.HUNDRED_MARK_SCORE;
-                else if (res.getString(6).equals("PF"))
+                else if (res.getString(5).equals("PF"))
                     course.grading = Course.CourseGrading.PASS_OR_FAIL;
                 courses.add(course);
             }

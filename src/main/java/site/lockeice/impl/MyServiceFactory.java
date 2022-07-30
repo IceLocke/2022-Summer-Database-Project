@@ -11,12 +11,6 @@ import java.util.List;
 public class MyServiceFactory extends ServiceFactory {
     public MyServiceFactory() {
         super();
-        try {
-            SQLDataSource.getInstance().getSQLConnection().setAutoCommit(false);
-        }
-        catch (SQLException e) {
-            e.printStackTrace();
-        }
         registerService(CourseService.class, new MyCourseService());
         registerService(DepartmentService.class, new MyDepartmentService());
         registerService(InstructorService.class, new MyInstructorService());
