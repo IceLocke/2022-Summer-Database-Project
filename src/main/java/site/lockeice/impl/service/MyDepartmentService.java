@@ -12,8 +12,7 @@ public class MyDepartmentService implements DepartmentService {
 
     @Override
     public int addDepartment(String name) {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String sql = "insert into departments (department) values ('%s')";
             Statement s = conn.createStatement();
             s.execute(sql.formatted(name));
@@ -36,8 +35,7 @@ public class MyDepartmentService implements DepartmentService {
 
     @Override
     public void removeDepartment(int departmentId) {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String sql = "delete from majors where dept_id = %d";
             Statement s = conn.createStatement();
             s.execute(sql.formatted(departmentId));
@@ -54,8 +52,8 @@ public class MyDepartmentService implements DepartmentService {
 
     @Override
     public List<Department> getAllDepartments() {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
+            
             String sql = "select dept_id, department from departments";
             PreparedStatement s = conn.prepareStatement(sql);
             ResultSet res = s.executeQuery();

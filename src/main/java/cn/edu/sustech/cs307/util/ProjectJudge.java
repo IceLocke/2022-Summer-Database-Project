@@ -42,6 +42,8 @@ public final class ProjectJudge {
     private final List<CourseSearchEntry> errorCourseList = List.of(new CourseSearchEntry());
     private final CourseTable errorTable = new CourseTable();
 
+    public static int count = 0;
+
     public EvalResult testSearchCourses(File searchCourseDir) {
         EvalResult result = new EvalResult();
         for (File file : searchCourseDir.listFiles((dir, name) -> !name.endsWith("Result.json"))) {
@@ -66,6 +68,10 @@ public final class ProjectJudge {
 
     public List<CourseSearchEntry> testSearchCourse(List<Object> params) {
         try {
+//            ++count;
+//            if (count > 990) {
+//                System.out.println("test search %d, %s".formatted(count, params));
+//            }
             return studentService.searchCourse((int) params.get(0), importer.mapSemesterId((int) params.get(1)),
                     (String) params.get(2), (String) params.get(3), (String) params.get(4),
                     (DayOfWeek) params.get(5), shortValue(params.get(6)), (List<String>) params.get(7),
@@ -186,7 +192,7 @@ public final class ProjectJudge {
                     int section = importer.mapSectionId(Integer.parseInt(it.getKey()));
                     try {
                         studentService.dropCourse(student, section);
-                        System.err.printf("FAILED For [%s, %s], expect exception", student, section);
+                        System.err.printf("FAILED For [%s, %s], expect exception\n", student, section);
                     } catch (IllegalStateException e) {
                         result.passCount.getAndIncrement();
                     }

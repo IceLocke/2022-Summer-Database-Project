@@ -20,8 +20,7 @@ public class MyCourseService implements CourseService {
     @Override
     public void addCourse(String courseId, String courseName, int credit,
                           int classHour, Course.CourseGrading grading, @Nullable Prerequisite prerequisite) {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String sql = """
                         insert into courses
                         (course_id, course_name, credit, hour, grading, prerequisite) 
@@ -60,8 +59,7 @@ public class MyCourseService implements CourseService {
 
     @Override
     public int addCourseSection(String courseId, int semesterId, String sectionName, int totalCapacity) {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String sql = """
                         insert into classes
                         (course_id, semester_id, class_name, capacity)
@@ -104,9 +102,7 @@ public class MyCourseService implements CourseService {
                                      short classStart, short classEnd,
                                      String location
     ) {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
-
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             // Specify location
             String queryLocation = "select location_id from locations where location = ?";
             PreparedStatement s1 = conn.prepareStatement(queryLocation);
@@ -175,9 +171,7 @@ public class MyCourseService implements CourseService {
 
     @Override
     public void removeCourse(String courseId) {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
-
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             // delete class_week_list
             String deleteWeekList = """
                         delete from class_week_list cwl
@@ -247,8 +241,7 @@ public class MyCourseService implements CourseService {
 
     @Override
     public List<Course> getAllCourses() {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String sql = """
                     select course_id, course_name, credit, hour, grading from courses
                     """;

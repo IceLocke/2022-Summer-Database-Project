@@ -9,8 +9,7 @@ import java.sql.*;
 public class MyMajorService implements MajorService {
     @Override
     public int addMajor(String name, int departmentId) {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String sql = "insert into majors (major, dept_id) values(?, ?)";
             PreparedStatement statement = conn.prepareStatement(sql);
             statement.setString(1, name);
@@ -43,8 +42,8 @@ public class MyMajorService implements MajorService {
     }
 
     private void setCourseType(String courseId, int type) {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
+            
             String sql = """
                         insert into
                         course_type
@@ -56,7 +55,6 @@ public class MyMajorService implements MajorService {
             s.setInt(2, type);
             s.setInt(3, 0);
             s.execute();
-            conn.close();
         }
         catch (SQLException e) {
             e.printStackTrace();

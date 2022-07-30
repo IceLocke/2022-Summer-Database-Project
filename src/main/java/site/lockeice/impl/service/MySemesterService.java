@@ -12,8 +12,8 @@ import java.util.List;
 public class MySemesterService implements SemesterService {
     @Override
     public int addSemester(String name, Date begin, Date end) {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
+            
             String addSem = "insert into semesters (semester_name, semester_begin, semester_end)" +
                             "values(?, ?, ?)";
             PreparedStatement s = conn.prepareStatement(addSem);
@@ -36,8 +36,8 @@ public class MySemesterService implements SemesterService {
 
     @Override
     public void removeSemester(int semesterId) {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
+            
 
             // remove week list
             String removeWeekList = """
@@ -92,10 +92,9 @@ public class MySemesterService implements SemesterService {
 
     @Override
     public List<Semester> getAllSemesters() {
-        try {
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             ArrayList semesters = new ArrayList<Semester>();
-
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+            
             String sql = "select semester_id, semester_name, semester_begin, semester_end from semesters";
             Statement s = conn.createStatement();
             ResultSet res = s.executeQuery(sql);

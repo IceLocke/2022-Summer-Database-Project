@@ -10,8 +10,7 @@ import java.sql.SQLException;
 public class MyInstructorService implements InstructorService {
     @Override
     public void addInstructor(int userId, String firstName, String lastName) {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String sql = "insert into teachers (user_id, first_name, last_name)" +
                          "values(?, ?, ?)";
             PreparedStatement statement = conn.prepareStatement(sql);
@@ -19,7 +18,6 @@ public class MyInstructorService implements InstructorService {
             statement.setString(2, firstName);
             statement.setString(3, lastName);
             statement.execute();
-            conn.close();
         }
         catch (SQLException e) {
             e.printStackTrace();

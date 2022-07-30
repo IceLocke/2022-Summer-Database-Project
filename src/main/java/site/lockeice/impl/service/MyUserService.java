@@ -12,9 +12,7 @@ import java.util.List;
 public class MyUserService implements UserService {
     @Override
     public void removeUser(int userId) {
-        try {
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
-
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             // remove week list
             String removeWeekList = """
                         delete from class_week_list
@@ -52,7 +50,6 @@ public class MyUserService implements UserService {
             s.setInt(1, userId);
             s.execute();
 
-            conn.close();
         }
         catch (SQLException e) {
             e.printStackTrace();
@@ -61,9 +58,8 @@ public class MyUserService implements UserService {
 
     @Override
     public List<User> getAllUsers() {
-        try {
+        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             ArrayList users = new ArrayList<User>();
-            Connection conn = SQLDataSource.getInstance().getSQLConnection();
             String sql = "select user_id, (first_name || ' ' || last_name) from teachers";
             Statement statement = conn.createStatement();
             ResultSet res = statement.executeQuery(sql);
