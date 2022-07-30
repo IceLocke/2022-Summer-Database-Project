@@ -1,6 +1,7 @@
 package site.lockeice.impl.service;
 
 import cn.edu.sustech.cs307.database.SQLDataSource;
+import cn.edu.sustech.cs307.dto.Course;
 import cn.edu.sustech.cs307.dto.CourseSearchEntry;
 import cn.edu.sustech.cs307.dto.CourseTable;
 import cn.edu.sustech.cs307.dto.Instructor;
@@ -55,6 +56,37 @@ public class MyStudentService implements StudentService {
             boolean ignoreFull, boolean ignoreConflict, boolean ignorePassed, boolean ignoreMissingPrerequisites,
             int pageSize, int pageIndex
     ) {
+        try {
+            Connection conn = SQLDataSource.getInstance().getSQLConnection();
+            String sql = """
+                    select crs.course_id, crs.course_name, crs.credit, crs.hour, crs.grading,
+                           cls.class_id, cls.class_name, cls.capacity, 
+                           (cls.capacity - (select count(*) from course_select cs where cs.class_id = class_id)) as 
+                           left_capacity
+                    from classes cls
+                    join courses crs on crs.course_id = cls.course_id
+                    join class_timetable ctt on cls.class_id = ctt.class_id
+                    join locations l on ctt.location_id = l.location_id
+                    join class_teachers ct on ctt.class_timetable_id = ct.teacher_id
+                    join teachers t on t.user_id = ct.teacherid
+                    where cls.semester_id = ? and
+                          (cls.course_id = ? or ?) and
+                          (crs.course_name = ? or ?) and
+                          (t.first_name || t.last_name = ? or ?) and
+                          (ctt.weekday = ? or ?) and
+                          ((ctt.time_begin <= ? and ctt.time_end >= ?) or ?) and
+                          (l.location in ? or ?) and
+                          (crs.course_type = ? or ?) and
+                          (? or )
+                    """;
+            PreparedStatement statement = conn.prepareStatement(sql);
+
+            ArrayList<CourseSearchEntry> entries = new ArrayList<>();
+
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        }
         return null;
     }
 
@@ -203,6 +235,7 @@ public class MyStudentService implements StudentService {
         }
         catch (SQLException e) {
             e.printStackTrace();
+            throw new IllegalStateException();
         }
     }
 
@@ -337,9 +370,10 @@ public class MyStudentService implements StudentService {
                        select distinct c.course_id
                        from course_select cs
                        join classes c on cs.class_id = c.class_id
-                       where cs.grade >= 60 and cs.grade is not null
+                       where cs.grade >= 60 and cs.grade is not null and sid = ?
                     """;
             PreparedStatement statement = conn.prepareStatement(queryPassedCourses);
+            statement.setInt(1, studentId);
             ResultSet res = statement.executeQuery();
             while (res.next())
                 passedCourses.add(res.getString(1));
@@ -365,8 +399,6 @@ public class MyStudentService implements StudentService {
         }
         catch (SQLException e) {
             e.printStackTrace();
-        } catch (JsonMappingException e) {
-            throw new RuntimeException(e);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
