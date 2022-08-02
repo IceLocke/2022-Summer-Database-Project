@@ -84,13 +84,15 @@ public class MyStudentService implements StudentService {
                     where 
                           (? 
                           or subq.class_id not in (
-                                    select course_select.class_id
-                                    from course_select
-                                    where grade >= 60 and sid = ?
-                                            
+                                select cls2.class_id
+                                from course_select cs
+                                join classes cls1 on (cs.sid = ? and cs.grade >= 60) and 
+                                                         cs.class_id = cls1.class_id
+                                join classes cls2 on cls1.course_id = cls2.course_id
                           )
                           ) -- passed check
-                    order by course_id, (course_name || ' ' || class_name)
+                    order by course_id, course_name, class_name
+                    -- limit ? offset ?
                     """;
 
             /**
@@ -126,6 +128,10 @@ public class MyStudentService implements StudentService {
             statement.setBoolean(17, searchCourseType == CourseType.ALL);
             statement.setBoolean(18, ignorePassed);
             statement.setInt(19, studentId);
+//            statement.setInt(20, pageSize);
+//            statement.setInt(21, pageIndex * pageSize);
+
+//            System.out.println("%d %d %d\n%s".formatted(studentId, pageSize, pageIndex, statement));
 
             //System.out.println("Query all");
             ResultSet res = statement.executeQuery();
@@ -181,6 +187,7 @@ public class MyStudentService implements StudentService {
                     selectCount.next();
                     entry.section.leftCapacity = entry.section.totalCapacity - selectCount.getInt(1);
                     selectCount.close();
+                    queryCapacityStatement.close();
 
                     // Get section classes by class_id
                     //System.out.println("%s Course section class".formatted(res.getString("course_id")));
@@ -225,6 +232,7 @@ public class MyStudentService implements StudentService {
                         while (weekListRes.next())
                             css.weekList.add(weekListRes.getShort(1));
                         entry.sectionClasses.add(css);
+                        p.close();
                         weekListRes.close();
                     }
                     sectionClassRes.close();
@@ -234,8 +242,9 @@ public class MyStudentService implements StudentService {
                     String queryConflictCourses = """
                                 select course_name, class_name
                                 from 
-                                    (with to_select as (
-                                        select c.class_id, time_begin, time_end, weekday, c.semester_id
+                                    (
+                                    with to_select as (
+                                        select c.class_id, c.course_id, time_begin, time_end, weekday, c.semester_id
                                         from class_timetable
                                         join classes c on class_timetable.class_id = c.class_id
                                         where c.class_id = ?
@@ -244,13 +253,27 @@ public class MyStudentService implements StudentService {
                                     from course_select cs
                                     join class_timetable ct on cs.class_id = ct.class_id
                                     join classes c on cs.class_id = c.class_id
-                                    join to_select on (
-                                        to_select.weekday = ct.weekday and
-                                        to_select.time_begin >= ct.time_begin and
-                                        to_select.time_end <= ct.time_end and
-                                        to_select.semester_id = c.semester_id
+                                    join to_select on 
+                                        (
+                                            to_select.weekday = ct.weekday and
+                                            (
+                                                (
+                                                    to_select.time_begin <= ct.time_end and 
+                                                    to_select.time_end >= ct.time_begin 
+                                                ) or
+                                                (
+                                                    ct.time_begin <= to_select.time_end and
+                                                    ct.time_end >= to_select.time_begin
+                                                )
+                                            ) and
+                                            to_select.semester_id = c.semester_id
+                                        ) or
+                                        (
+                                            to_select.course_id = c.course_id and
+                                            to_select.semester_id = c.semester_id
                                         )
-                                    where cs.sid = ?) subq
+                                    where cs.sid = ?
+                                    ) subq
                                 join classes on subq.class_id = classes.class_id
                                 join courses on classes.course_id = courses.course_id
                             """;
@@ -270,8 +293,8 @@ public class MyStudentService implements StudentService {
                     entries.add(entry);
                 }
             }
+//            System.out.println("finished %d".formatted(studentId));
             conn.close();
-            //System.out.println("search id: %d finished".formatted(studentId));
             return entries;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -354,7 +377,7 @@ public class MyStudentService implements StudentService {
             // COURSE_CONFLICT_FOUND,
             String sql5 = """
                     with to_select as (
-                        select c.class_id, time_begin, time_end, weekday, c.semester_id
+                        select c.class_id, c.course_id, time_begin, time_end, weekday, c.semester_id
                         from class_timetable
                         join classes c on class_timetable.class_id = c.class_id
                         where c.class_id = ?
@@ -363,11 +386,24 @@ public class MyStudentService implements StudentService {
                     from course_select cs
                     join class_timetable ct on cs.class_id = ct.class_id
                     join classes c on c.class_id = ct.class_id
-                    join to_select on (
-                        to_select.weekday = ct.weekday and
-                        to_select.time_begin >= ct.time_begin and
-                        to_select.time_end <= ct.time_end and
-                        to_select.semester_id = c.semester_id
+                    join to_select on 
+                        (
+                            to_select.weekday = ct.weekday and
+                            (
+                                (
+                                    to_select.time_begin <= ct.time_end and 
+                                    to_select.time_end >= ct.time_begin 
+                                ) or
+                                (
+                                    ct.time_begin <= to_select.time_end and
+                                    ct.time_end >= to_select.time_begin
+                                )
+                            ) and
+                            to_select.semester_id = c.semester_id
+                        ) or
+                        (
+                            to_select.course_id = c.course_id and
+                            to_select.semester_id = c.semester_id
                         )
                     where cs.sid = ?
                     """;
@@ -382,29 +418,38 @@ public class MyStudentService implements StudentService {
             }
 
             // COURSE_IS_FULL
-            String sql1 = """
-                        with selected as (
-                            select count(*) cnt
-                            from course_select
-                            group by class_id
-                            having class_id = ?
-                            )
-                        select ((select selected.cnt from selected)>= classes.capacity)
-                        from classes
-                        where class_id = ?
-                    """;
-            statement = conn.prepareStatement(sql1);
-            statement.setInt(1, sectionId);
-            statement.setInt(2, sectionId);
-            res = statement.executeQuery();
-            res.next();
-            if (res.getBoolean(1)) {
-                enrollResult = EnrollResult.COURSE_IS_FULL;
-                return enrollResult;
-            }
+//            String sql1 = """
+//                        with selected as (
+//                            select count(*) cnt
+//                            from course_select
+//                            group by class_id
+//                            having class_id = ?
+//                            )
+//                        select ((select selected.cnt from selected)>= classes.capacity)
+//                        from classes
+//                        where class_id = ?
+//                    """;
+//            statement = conn.prepareStatement(sql1);
+//            statement.setInt(1, sectionId);
+//            statement.setInt(2, sectionId);
+//            res = statement.executeQuery();
+//            res.next();
+//            if (res.getBoolean(1)) {
+//                enrollResult = EnrollResult.COURSE_IS_FULL;
+//                return enrollResult;
+//            }
 
             //System.out.println("Success");
             enrollResult = EnrollResult.SUCCESS;
+            String enrollSql = """
+                    insert into course_select (sid, class_id)
+                    values (?, ?)
+                    """;
+            statement = conn.prepareStatement(enrollSql);
+            statement.setInt(1, studentId);
+            statement.setInt(2, sectionId);
+            statement.execute();
+
             conn.close();
             return enrollResult;
         } catch (SQLException e) {
@@ -418,13 +463,13 @@ public class MyStudentService implements StudentService {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String hasEnrolled = """
                     select grade from course_select
-                    where sid = ? and class_id = ?
+                    where sid = ? and class_id = ? and grade is not null
                     """;
             PreparedStatement statement = conn.prepareStatement(hasEnrolled);
             statement.setInt(1, studentId);
             statement.setInt(2, sectionId);
             ResultSet res = statement.executeQuery();
-            if (res.next()) {
+            if (res.next()){
                 if (res.getInt(1) >= 0 && res.getInt(1) <= 100)
                     throw new IllegalStateException();
             }
@@ -466,8 +511,9 @@ public class MyStudentService implements StudentService {
                         throw new IllegalStateException();
                     score = ((HundredMarkGrade) grade).mark;
                 }
+                statement.setInt(3, score);
             }
-            statement.setInt(3, score);
+            else statement.setNull(3, Types.INTEGER);
             statement.execute();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -601,6 +647,7 @@ public class MyStudentService implements StudentService {
                 ObjectMapper mapper = new ObjectMapper();
                 prerequisite = mapper.readValue(res.getString(1), Prerequisite.class);
             }
+            statement.close();
             conn.close();
             if (prerequisite == null)
                 return true;

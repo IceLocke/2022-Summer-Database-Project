@@ -49,7 +49,7 @@ public class MyCourseService implements CourseService {
             statement.setString(1, courseId);
             statement.setInt(2, StudentService.CourseType.ALL.ordinal());
             statement.execute();
-            conn.close();
+
         }
         catch (SQLException | JsonProcessingException e) {
             e.printStackTrace();
@@ -60,17 +60,32 @@ public class MyCourseService implements CourseService {
     @Override
     public int addCourseSection(String courseId, int semesterId, String sectionName, int totalCapacity) {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
+            String queryCourseSectionExists = """
+                        select class_id 
+                        from classes
+                        where course_id = ? and semester_id = ? and class_name = ?
+                    """;
+            PreparedStatement statement = conn.prepareStatement(queryCourseSectionExists);
+            statement.setString(1, courseId);
+            statement.setInt(2, semesterId);
+            statement.setString(3, sectionName);
+            ResultSet exists = statement.executeQuery();
+            if (exists.next())
+                return exists.getInt(1);
+            statement.close();
+
             String sql = """
                         insert into classes
                         (course_id, semester_id, class_name, capacity)
                         values (?, ?, ?, ?)
                     """;
-            PreparedStatement statement = conn.prepareStatement(sql);
+            statement = conn.prepareStatement(sql);
             statement.setString(1, courseId);
             statement.setInt(2, semesterId);
             statement.setString(3, sectionName);
             statement.setInt(4, totalCapacity);
             statement.execute();
+            statement.close();
 
             String querySection = """
                         select max(class_id) 
