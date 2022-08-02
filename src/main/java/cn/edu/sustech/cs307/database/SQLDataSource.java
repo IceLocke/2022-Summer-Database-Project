@@ -27,7 +27,7 @@ public final class SQLDataSource implements Closeable {
         dataSource.setJdbcUrl(jdbcUrl);
         dataSource.setUsername(username);
         dataSource.setPassword(password);
-        dataSource.setMaximumPoolSize(18);
+        dataSource.setMaximumPoolSize(16);
     }
 
     public Connection getSQLConnection() throws SQLException {

@@ -50,6 +50,7 @@ public class MyStudentService implements StudentService {
             boolean ignoreFull, boolean ignoreConflict, boolean ignorePassed, boolean ignoreMissingPrerequisites,
             int pageSize, int pageIndex
     ) {
+        ArrayList<CourseSearchEntry> entries = new ArrayList<>();
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String sql = """
                     select class_id, class_name, capacity,
@@ -141,13 +142,12 @@ public class MyStudentService implements StudentService {
              */
             ignoreMissingPrerequisites = !ignoreMissingPrerequisites;
 
-            ArrayList<CourseSearchEntry> entries = new ArrayList<>();
             int cnt = 1;
 
             while (res.next() && entries.size() < pageSize) {
                 Connection conn0 = conn;
                 if (ignoreMissingPrerequisites ||
-                        passedPrerequisitesForCourse(studentId, res.getString("course_id"))) {
+                        passedPrerequisitesForCourse(studentId, res.getString("course_id"), conn0)) {
                     if (cnt > pageSize + pageSize * pageIndex ||
                             cnt <= pageSize * pageIndex) {
                         cnt++;
@@ -299,7 +299,7 @@ public class MyStudentService implements StudentService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return null;
+        return entries;
     }
 
     @Override
@@ -369,7 +369,7 @@ public class MyStudentService implements StudentService {
             res = statement.executeQuery();
             res.next();
             String course_id = res.getString(1);
-            if (!passedPrerequisitesForCourse(studentId, course_id)) {
+            if (!passedPrerequisitesForCourse(studentId, course_id, conn)) {
                 enrollResult = EnrollResult.PREREQUISITES_NOT_FULFILLED;
                 return enrollResult;
             }
@@ -522,10 +522,8 @@ public class MyStudentService implements StudentService {
 
     @Override
     public CourseTable getCourseTable(int studentId, Date date) {
+        CourseTable courseTable = new CourseTable();
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
-
-            CourseTable courseTable = new CourseTable();
-
             // Verify week in certain semester
             String sql = """
                     with semester as (
@@ -590,7 +588,7 @@ public class MyStudentService implements StudentService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return null;
+        return courseTable;
     }
 
     private boolean calculatePrerequisites(Prerequisite node, ArrayList<String> passedCourses) {
@@ -617,9 +615,8 @@ public class MyStudentService implements StudentService {
         return false;
     }
 
-    public boolean passedPrerequisitesForCourse(int studentId, String course_id) {
-        try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
-
+    public boolean passedPrerequisitesForCourse(int studentId, String course_id, Connection conn) {
+        try {
             ArrayList<String> passedCourses = new ArrayList<>();
 
             // Get student passed courses
@@ -648,7 +645,6 @@ public class MyStudentService implements StudentService {
                 prerequisite = mapper.readValue(res.getString(1), Prerequisite.class);
             }
             statement.close();
-            conn.close();
             if (prerequisite == null)
                 return true;
 
