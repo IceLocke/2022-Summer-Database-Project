@@ -39,17 +39,6 @@ public class MyCourseService implements CourseService {
             statement.setString(6, mapper.writeValueAsString(prerequisite));
 
             statement.execute();
-
-            String addCourseType = """
-                        insert into course_type
-                        (course_id, course_type)
-                        values (?, ?)
-                    """;
-            statement = conn.prepareStatement(addCourseType);
-            statement.setString(1, courseId);
-            statement.setInt(2, StudentService.CourseType.ALL.ordinal());
-            statement.execute();
-
         }
         catch (SQLException | JsonProcessingException e) {
             e.printStackTrace();
@@ -238,6 +227,15 @@ public class MyCourseService implements CourseService {
             s.setString(1, courseId);
             s.execute();
 
+            // delete course type
+            String deleteCourseType = """
+                        delete from courses
+                        where course_id = ?
+                    """;
+            s = conn.prepareStatement(deleteCourseType);
+            s.setString(1, courseId);
+            s.execute();
+
             // delete course
             String deleteCourse = """
                         delete from courses
@@ -246,7 +244,6 @@ public class MyCourseService implements CourseService {
             s = conn.prepareStatement(deleteCourse);
             s.setString(1, courseId);
             s.execute();
-
             conn.close();
         }
         catch (SQLException e) {

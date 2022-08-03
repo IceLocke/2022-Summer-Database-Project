@@ -33,27 +33,26 @@ public class MyMajorService implements MajorService {
 
     @Override
     public void addMajorCompulsoryCourse(int majorId, String courseId) {
-        setCourseType(courseId, 1);
+        setCourseType(courseId, 1, majorId);
     }
 
     @Override
     public void addMajorElectiveCourse(int majorId, String courseId) {
-        setCourseType(courseId, 2);
+        setCourseType(courseId, 2, majorId);
     }
 
-    private void setCourseType(String courseId, int type) {
+    private void setCourseType(String courseId, int type, int majorID) {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
-            
             String sql = """
                         insert into
                         course_type
-                        (course_id, course_type, dept_id) 
+                        (course_id, type, major_id) 
                         values (?, ?, ?)
                     """;
             PreparedStatement s = conn.prepareStatement(sql);
             s.setString(1, courseId);
             s.setInt(2, type);
-            s.setInt(3, 0);
+            s.setInt(3, majorID);
             s.execute();
         }
         catch (SQLException e) {

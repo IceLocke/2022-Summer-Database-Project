@@ -66,7 +66,6 @@ public class MyStudentService implements StudentService {
                         join locations l on ctt.location_id = l.location_id
                         join class_teachers ct on ctt.class_timetable_id = ct.class_timetable_id
                         join teachers t on t.user_id = ct.teacher_id
-                        join course_type c on cls.course_id = c.course_id
                         where 
                               (? or cls.course_id like ?) and
                               (? or crs.course_name || '[' || cls.class_name || ']' like ?) and
@@ -79,8 +78,7 @@ public class MyStudentService implements StudentService {
                                ) and
                               (ctt.weekday = ? or ?) and
                               ((ctt.time_begin <= ? and ctt.time_end >= ?) or ?) and
-                              (l.location like any(?) or ?) and
-                              (c.course_type = ? or ?)
+                              (l.location like any(?) or ?)
                     ) as subq
                     where 
                           (? 
@@ -125,14 +123,8 @@ public class MyStudentService implements StudentService {
                     conn.createArrayOf("varchar", new Object[]{""}) :
                     locations);
             statement.setBoolean(15, searchClassLocations == null);
-            statement.setInt(16, searchCourseType.ordinal());
-            statement.setBoolean(17, searchCourseType == CourseType.ALL);
-            statement.setBoolean(18, ignorePassed);
-            statement.setInt(19, studentId);
-//            statement.setInt(20, pageSize);
-//            statement.setInt(21, pageIndex * pageSize);
-
-//            System.out.println("%d %d %d\n%s".formatted(studentId, pageSize, pageIndex, statement));
+            statement.setBoolean(16, ignorePassed);
+            statement.setInt(17, studentId);
 
             //System.out.println("Query all");
             ResultSet res = statement.executeQuery();
@@ -145,19 +137,66 @@ public class MyStudentService implements StudentService {
             int cnt = 1;
 
             while (res.next() && entries.size() < pageSize) {
-                Connection conn0 = conn;
                 if (ignoreMissingPrerequisites ||
-                        passedPrerequisitesForCourse(studentId, res.getString("course_id"), conn0)) {
+                        passedPrerequisitesForCourse(studentId, res.getString("course_id"), conn)) {
                     if (cnt > pageSize + pageSize * pageIndex ||
                             cnt <= pageSize * pageIndex) {
                         cnt++;
                         continue;
                     }
-                    CourseSearchEntry entry = new CourseSearchEntry();
+
+                    // Course type part
+                    String courseID = res.getString("course_id");
+                    if (searchCourseType != CourseType.ALL) {
+                        String queryStudentMajor = """
+                                    select major_id from students where sid = ?
+                                """;
+                        PreparedStatement statement1 = conn.prepareStatement(queryStudentMajor);
+                        statement1.setInt(1, studentId);
+                        ResultSet resultSet = statement1.executeQuery();
+
+                        if (resultSet.next()) {
+                            int majorId = resultSet.getInt(1);
+                            String queryCourseType = """
+                                        select major_id, type
+                                        from course_type
+                                        where course_id = ? and type is not null and type != 0
+                                    """;
+                            statement1 = conn.prepareStatement(queryCourseType);
+                            statement1.setString(1, courseID);
+                            resultSet = statement1.executeQuery();
+                            boolean isMajorCompulsory = false,
+                                    isMajorElective = false,
+                                    inInOtherMajor = false;
+
+                            while (resultSet.next()) {
+                                if (resultSet.getInt("major_id") == majorId &&
+                                        resultSet.getInt("type") == CourseType.MAJOR_COMPULSORY.ordinal())
+                                    isMajorCompulsory = true;
+                                if (resultSet.getInt("major_id") == majorId &&
+                                        resultSet.getInt("type") == CourseType.MAJOR_ELECTIVE.ordinal())
+                                    isMajorElective = true;
+                                inInOtherMajor = true;
+                            }
+
+                            if (searchCourseType == CourseType.MAJOR_COMPULSORY)
+                                if (!isMajorCompulsory)
+                                    continue;
+                            if (searchCourseType == CourseType.MAJOR_ELECTIVE)
+                                if (!isMajorElective)
+                                    continue;
+                            if (searchCourseType == CourseType.CROSS_MAJOR)
+                                if (!inInOtherMajor && isMajorCompulsory && isMajorElective)
+                                    continue;
+                            if (searchCourseType == CourseType.PUBLIC)
+                                if (inInOtherMajor)
+                                    continue;
+                        }
+                    }
 
                     // Course info part
                     //System.out.println("%s Course info".formatted(res.getString("course_id")));
-
+                    CourseSearchEntry entry = new CourseSearchEntry();
                     entry.course = new Course();
                     entry.course.id = res.getString("course_id");
                     entry.course.name = res.getString("course_name");
@@ -203,7 +242,7 @@ public class MyStudentService implements StudentService {
                                 join locations l on ctt.location_id = l.location_id
                                 where ctt.class_id = ?
                             """;
-                    PreparedStatement s = conn0.prepareStatement(queryCourseSectionClass);
+                    PreparedStatement s = conn.prepareStatement(queryCourseSectionClass);
                     s.setInt(1, entry.section.id);
                     ResultSet sectionClassRes = s.executeQuery();
 
@@ -225,7 +264,7 @@ public class MyStudentService implements StudentService {
                         String queryWeekList = """
                                     select week from class_week_list where class_timetable_id = ?
                                 """;
-                        PreparedStatement p = conn0.prepareStatement(queryWeekList);
+                        PreparedStatement p = conn.prepareStatement(queryWeekList);
                         p.setInt(1, css.id);
                         ResultSet weekListRes = p.executeQuery();
                         css.weekList = new HashSet<>();
@@ -277,7 +316,7 @@ public class MyStudentService implements StudentService {
                                 join classes on subq.class_id = classes.class_id
                                 join courses on classes.course_id = courses.course_id
                             """;
-                    s = conn0.prepareStatement(queryConflictCourses);
+                    s = conn.prepareStatement(queryConflictCourses);
                     s.setInt(1, entry.section.id);
                     s.setInt(2, studentId);
                     ResultSet conflictRes = s.executeQuery();
