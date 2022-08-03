@@ -4,10 +4,12 @@ import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.MajorService;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.sql.*;
 
 public class MyMajorService implements MajorService {
     @Override
+    @ParametersAreNonnullByDefault
     public int addMajor(String name, int departmentId) {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String sql = "insert into majors (major, dept_id) values(?, ?)";
@@ -16,7 +18,7 @@ public class MyMajorService implements MajorService {
             statement.setInt(2, departmentId);
             statement.execute();
 
-            sql = "select max(major_id) from majors";
+            sql = "select max(major_id) as max_major_id from majors";
             Statement s = conn.createStatement();
             ResultSet res = s.executeQuery(sql);
             res.next();
@@ -32,11 +34,13 @@ public class MyMajorService implements MajorService {
     }
 
     @Override
+    @ParametersAreNonnullByDefault
     public void addMajorCompulsoryCourse(int majorId, String courseId) {
         setCourseType(courseId, 1, majorId);
     }
 
     @Override
+    @ParametersAreNonnullByDefault
     public void addMajorElectiveCourse(int majorId, String courseId) {
         setCourseType(courseId, 2, majorId);
     }
@@ -46,7 +50,7 @@ public class MyMajorService implements MajorService {
             String sql = """
                         insert into
                         course_type
-                        (course_id, type, major_id) 
+                        (course_id, type, major_id)
                         values (?, ?, ?)
                     """;
             PreparedStatement s = conn.prepareStatement(sql);

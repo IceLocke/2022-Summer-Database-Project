@@ -5,11 +5,11 @@ import cn.edu.sustech.cs307.dto.Course;
 import cn.edu.sustech.cs307.dto.prerequisite.Prerequisite;
 import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.CourseService;
-import cn.edu.sustech.cs307.service.StudentService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.sql.*;
 import java.time.DayOfWeek;
 import java.util.ArrayList;
@@ -18,12 +18,13 @@ import java.util.Set;
 
 public class MyCourseService implements CourseService {
     @Override
+    @ParametersAreNonnullByDefault
     public void addCourse(String courseId, String courseName, int credit,
                           int classHour, Course.CourseGrading grading, @Nullable Prerequisite prerequisite) {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String sql = """
                         insert into courses
-                        (course_id, course_name, credit, hour, grading, prerequisite) 
+                        (course_id, course_name, credit, hour, grading, prerequisite)
                         values (?, ?, ?, ?, ?, ?)
                     """;
             PreparedStatement statement = conn.prepareStatement(sql);
@@ -47,10 +48,11 @@ public class MyCourseService implements CourseService {
     }
 
     @Override
+    @ParametersAreNonnullByDefault
     public int addCourseSection(String courseId, int semesterId, String sectionName, int totalCapacity) {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String queryCourseSectionExists = """
-                        select class_id 
+                        select class_id
                         from classes
                         where course_id = ? and semester_id = ? and class_name = ?
                     """;
@@ -65,19 +67,20 @@ public class MyCourseService implements CourseService {
 
             String sql = """
                         insert into classes
-                        (course_id, semester_id, class_name, capacity)
-                        values (?, ?, ?, ?)
+                        (course_id, semester_id, class_name, capacity, left_capacity)
+                        values (?, ?, ?, ?, ?)
                     """;
             statement = conn.prepareStatement(sql);
             statement.setString(1, courseId);
             statement.setInt(2, semesterId);
             statement.setString(3, sectionName);
             statement.setInt(4, totalCapacity);
+            statement.setInt(5, totalCapacity);
             statement.execute();
             statement.close();
 
             String querySection = """
-                        select max(class_id) 
+                        select max(class_id) as max_class_is
                         from classes cls
                         join courses c on c.course_id = cls.course_id
                         where class_name = ? and c.course_id = ?
@@ -101,6 +104,7 @@ public class MyCourseService implements CourseService {
     }
 
     @Override
+    @ParametersAreNonnullByDefault
     public int addCourseSectionClass(int sectionId, int instructorId,
                                      DayOfWeek dayOfWeek, Set<Short> weekList,
                                      short classStart, short classEnd,
@@ -113,9 +117,7 @@ public class MyCourseService implements CourseService {
             s1.setString(1, location);
             ResultSet res = s1.executeQuery();
             int locationId;
-            if (res.next()) {
-            }
-            else {
+            if (!res.next()) {
                 String insertLocation = "insert into locations (location)" +
                                         "values (?)";
                 PreparedStatement s3 = conn.prepareStatement(insertLocation);
@@ -142,7 +144,7 @@ public class MyCourseService implements CourseService {
             s4.setInt(5, locationId);
             s4.execute();
 
-            String queryClassTTId = "select currval(pg_get_serial_sequence('class_timetable', 'class_timetable_id'))";
+            String queryClassTTId = "select currval(pg_get_serial_sequence('class_timetable', 'class_timetable_id')) cur_va;";
             Statement s5 = conn.createStatement();
             res = s5.executeQuery(queryClassTTId);
             res.next();
@@ -174,6 +176,7 @@ public class MyCourseService implements CourseService {
     }
 
     @Override
+    @ParametersAreNonnullByDefault
     public void removeCourse(String courseId) {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             // delete class_week_list
@@ -244,7 +247,6 @@ public class MyCourseService implements CourseService {
             s = conn.prepareStatement(deleteCourse);
             s.setString(1, courseId);
             s.execute();
-            conn.close();
         }
         catch (SQLException e) {
             e.printStackTrace();
@@ -259,7 +261,7 @@ public class MyCourseService implements CourseService {
                     """;
             Statement statement = conn.createStatement();
             ResultSet res = statement.executeQuery(sql);
-            ArrayList courses = new ArrayList<Course>();
+            ArrayList<Course> courses = new ArrayList<>();
             while (res.next()) {
                 Course course = new Course();
                 course.id = res.getString(1);

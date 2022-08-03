@@ -17,7 +17,7 @@ public class MyUserService implements UserService {
             String removeWeekList = """
                         delete from class_week_list
                         where class_timetable_id in (
-                            select class_timetable_id
+                            select ctt.class_timetable_id
                             from class_timetable ctt
                             join class_teachers ct on ctt.class_timetable_id = ct.class_timetable_id
                             where teacher_id = ?
@@ -31,7 +31,7 @@ public class MyUserService implements UserService {
             String removeClassTimetable = """
                         delete from class_timetable
                         where class_timetable_id in (
-                            select class_timetable_id
+                            select ctt.class_timetable_id
                             from class_timetable ctt
                             join class_teachers ct on ctt.class_timetable_id = ct.class_timetable_id
                             where teacher_id = ?
@@ -59,8 +59,8 @@ public class MyUserService implements UserService {
     @Override
     public List<User> getAllUsers() {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
-            ArrayList users = new ArrayList<User>();
-            String sql = "select user_id, (first_name || ' ' || last_name) from teachers";
+            ArrayList<User> users = new ArrayList<>();
+            String sql = "select user_id, (first_name || ' ' || last_name) as full_name from teachers";
             Statement statement = conn.createStatement();
             ResultSet res = statement.executeQuery(sql);
             while (res.next()) {

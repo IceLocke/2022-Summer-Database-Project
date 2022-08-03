@@ -5,12 +5,14 @@ import cn.edu.sustech.cs307.dto.Semester;
 import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.SemesterService;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MySemesterService implements SemesterService {
     @Override
+    @ParametersAreNonnullByDefault
     public int addSemester(String name, Date begin, Date end) {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             
@@ -22,7 +24,7 @@ public class MySemesterService implements SemesterService {
             s.setDate(3, end);
             s.execute();
 
-            String querySemId = "select max(semester_id) from semesters";
+            String querySemId = "select max(semester_id) as max_semester_id from semesters";
             Statement statement = conn.createStatement();
             ResultSet res = statement.executeQuery(querySemId);
             res.next();
@@ -35,6 +37,7 @@ public class MySemesterService implements SemesterService {
     }
 
     @Override
+    @ParametersAreNonnullByDefault
     public void removeSemester(int semesterId) {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             
@@ -83,7 +86,6 @@ public class MySemesterService implements SemesterService {
             s = conn.prepareStatement(removeSemester);
             s.setInt(1, semesterId);
             s.execute();
-            conn.close();
         }
         catch (SQLException e) {
             e.printStackTrace();
@@ -91,9 +93,10 @@ public class MySemesterService implements SemesterService {
     }
 
     @Override
+    @ParametersAreNonnullByDefault
     public List<Semester> getAllSemesters() {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
-            ArrayList semesters = new ArrayList<Semester>();
+            ArrayList<Semester> semesters = new ArrayList<>();
             
             String sql = "select semester_id, semester_name, semester_begin, semester_end from semesters";
             Statement s = conn.createStatement();

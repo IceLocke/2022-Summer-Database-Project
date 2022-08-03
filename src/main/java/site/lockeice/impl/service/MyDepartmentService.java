@@ -4,6 +4,7 @@ import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.dto.Department;
 import cn.edu.sustech.cs307.service.DepartmentService;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
 public class MyDepartmentService implements DepartmentService {
 
     @Override
+    @ParametersAreNonnullByDefault
     public int addDepartment(String name) {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String sql = "insert into departments (department) values ('%s')";
@@ -18,7 +20,7 @@ public class MyDepartmentService implements DepartmentService {
             s.execute(sql.formatted(name));
             
 
-            String queryCount = "select max(dept_id) from departments";
+            String queryCount = "select max(dept_id) max_dept from departments";
             s = conn.createStatement();
             ResultSet res = s.executeQuery(queryCount);
             res.next();
@@ -42,8 +44,6 @@ public class MyDepartmentService implements DepartmentService {
             sql = "delete from departments where dept_id = %d";
             s = conn.createStatement();
             s.execute(sql.formatted(departmentId));
-            conn.close();
-            return;
         }
         catch (SQLException e) {
             e.printStackTrace();
@@ -57,7 +57,7 @@ public class MyDepartmentService implements DepartmentService {
             String sql = "select dept_id, department from departments";
             PreparedStatement s = conn.prepareStatement(sql);
             ResultSet res = s.executeQuery();
-            ArrayList<Department> departments = new ArrayList<Department>();
+            ArrayList<Department> departments = new ArrayList<>();
             while (res.next()) {
                 Department dept = new Department();
                 dept.id = res.getInt(1);

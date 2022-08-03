@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import site.lockeice.impl.util.FullNameCheck;
 
 import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.sql.*;
 import java.sql.Date;
 import java.time.DayOfWeek;
@@ -23,6 +24,7 @@ import java.util.*;
 
 public class MyStudentService implements StudentService {
     @Override
+    @ParametersAreNonnullByDefault
     public void addStudent(int userId, int majorId, String firstName, String lastName, Date enrolledDate) {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
 
@@ -43,6 +45,7 @@ public class MyStudentService implements StudentService {
     }
 
     @Override
+    @ParametersAreNonnullByDefault
     public List<CourseSearchEntry> searchCourse(
             int studentId, int semesterId, @Nullable String searchCid, @Nullable String searchName,
             @Nullable String searchInstructor, @Nullable DayOfWeek searchDayOfWeek,
@@ -53,11 +56,11 @@ public class MyStudentService implements StudentService {
         ArrayList<CourseSearchEntry> entries = new ArrayList<>();
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
             String sql = """
-                    select class_id, class_name, capacity,
-                                    course_id, course_name, credit, hour, grading, 
+                    select class_id, class_name, capacity, left_capacity,
+                                    course_id, course_name, credit, hour, grading,
                                      prerequisite
                     from (
-                        select distinct cls.class_id, cls.class_name, cls.capacity, 
+                        select distinct cls.class_id, cls.class_name, cls.capacity, cls.left_capacity,
                                crs.course_id, crs.course_name, crs.credit, crs.hour, crs.grading,
                                crs.prerequisite
                         from classes cls
@@ -66,7 +69,7 @@ public class MyStudentService implements StudentService {
                         join locations l on ctt.location_id = l.location_id
                         join class_teachers ct on ctt.class_timetable_id = ct.class_timetable_id
                         join teachers t on t.user_id = ct.teacher_id
-                        where 
+                        where
                               (? or cls.course_id like ?) and
                               (? or crs.course_name || '[' || cls.class_name || ']' like ?) and
                               (
@@ -74,18 +77,18 @@ public class MyStudentService implements StudentService {
                                 (
                                     (t.first_name || ' ' || t.last_name like ?) or
                                     (t.first_name || t.last_name like ?)
-                                ) 
+                                )
                                ) and
                               (ctt.weekday = ? or ?) and
                               ((ctt.time_begin <= ? and ctt.time_end >= ?) or ?) and
                               (l.location like any(?) or ?)
                     ) as subq
-                    where 
-                          (? 
+                    where
+                          (?
                           or subq.class_id not in (
                                 select cls2.class_id
                                 from course_select cs
-                                join classes cls1 on (cs.sid = ? and cs.grade >= 60) and 
+                                join classes cls1 on (cs.sid = ? and cs.grade >= 60) and
                                                          cs.class_id = cls1.class_id
                                 join classes cls2 on cls1.course_id = cls2.course_id
                           )
@@ -93,11 +96,6 @@ public class MyStudentService implements StudentService {
                     order by course_id, course_name, class_name
                     -- limit ? offset ?
                     """;
-
-            /**
-             * REMEMBER TO DELETE!!!
-             */
-            // ignorePassed = true;
 
             PreparedStatement statement = conn.prepareStatement(sql);
             statement.setInt(1, semesterId);
@@ -115,23 +113,19 @@ public class MyStudentService implements StudentService {
             statement.setBoolean(13, searchClassTime == null);
             Array locations = null;
             if (searchClassLocations != null) {
-                for (int i = 0; i < searchClassLocations.size(); i++)
-                    searchClassLocations.set(i, "%" + searchClassLocations.get(i) + "%");
+                searchClassLocations.replaceAll(s -> "%" + s + "%");
                 locations = conn.createArrayOf("varchar", searchClassLocations.toArray());
             }
             statement.setArray(14, searchClassLocations == null ?
                     conn.createArrayOf("varchar", new Object[]{""}) :
                     locations);
             statement.setBoolean(15, searchClassLocations == null);
-            statement.setBoolean(16, ignorePassed);
+            statement.setBoolean(16, !ignorePassed);
             statement.setInt(17, studentId);
 
             //System.out.println("Query all");
             ResultSet res = statement.executeQuery();
 
-            /***
-             * REMEMBER TO DELETE!!!
-             */
             ignoreMissingPrerequisites = !ignoreMissingPrerequisites;
 
             int cnt = 1;
@@ -186,7 +180,7 @@ public class MyStudentService implements StudentService {
                                 if (!isMajorElective)
                                     continue;
                             if (searchCourseType == CourseType.CROSS_MAJOR)
-                                if (!inInOtherMajor && isMajorCompulsory && isMajorElective)
+                                if (!(!isMajorCompulsory && !isMajorElective && inInOtherMajor))
                                     continue;
                             if (searchCourseType == CourseType.PUBLIC)
                                 if (inInOtherMajor)
@@ -215,18 +209,7 @@ public class MyStudentService implements StudentService {
                     entry.section.name = res.getString("class_name");
                     entry.section.totalCapacity = res.getInt("capacity");
 
-                    // Get capacity
-                    String queryCapacity = """
-                                select count(*) from course_select
-                                where class_id = ?
-                            """;
-                    PreparedStatement queryCapacityStatement = conn.prepareStatement(queryCapacity);
-                    queryCapacityStatement.setInt(1, entry.section.id);
-                    ResultSet selectCount = queryCapacityStatement.executeQuery();
-                    selectCount.next();
-                    entry.section.leftCapacity = entry.section.totalCapacity - selectCount.getInt(1);
-                    selectCount.close();
-                    queryCapacityStatement.close();
+                    entry.section.leftCapacity = res.getInt("left_capacity");
 
                     // Get section classes by class_id
                     //System.out.println("%s Course section class".formatted(res.getString("course_id")));
@@ -280,7 +263,7 @@ public class MyStudentService implements StudentService {
                     // System.out.println("%s Course section conflict".formatted(res.getString("course_id")));
                     String queryConflictCourses = """
                                 select course_name, class_name
-                                from 
+                                from
                                     (
                                     with to_select as (
                                         select c.class_id, c.course_id, time_begin, time_end, weekday, c.semester_id
@@ -292,13 +275,13 @@ public class MyStudentService implements StudentService {
                                     from course_select cs
                                     join class_timetable ct on cs.class_id = ct.class_id
                                     join classes c on cs.class_id = c.class_id
-                                    join to_select on 
+                                    join to_select on
                                         (
                                             to_select.weekday = ct.weekday and
                                             (
                                                 (
-                                                    to_select.time_begin <= ct.time_end and 
-                                                    to_select.time_end >= ct.time_begin 
+                                                    to_select.time_begin <= ct.time_end and
+                                                    to_select.time_end >= ct.time_begin
                                                 ) or
                                                 (
                                                     ct.time_begin <= to_select.time_end and
@@ -328,11 +311,12 @@ public class MyStudentService implements StudentService {
                                 conflictRes.getString("class_name")));
                     entry.conflictCourseNames.sort(Comparator.naturalOrder());
                     conflictRes.close();
+                    if (ignoreConflict && entry.conflictCourseNames.size() > 0)
+                        continue;
                     cnt = cnt + 1;
                     entries.add(entry);
                 }
             }
-//            System.out.println("finished %d".formatted(studentId));
             conn.close();
             return entries;
         } catch (SQLException e) {
@@ -425,13 +409,13 @@ public class MyStudentService implements StudentService {
                     from course_select cs
                     join class_timetable ct on cs.class_id = ct.class_id
                     join classes c on c.class_id = ct.class_id
-                    join to_select on 
+                    join to_select on
                         (
                             to_select.weekday = ct.weekday and
                             (
                                 (
-                                    to_select.time_begin <= ct.time_end and 
-                                    to_select.time_end >= ct.time_begin 
+                                    to_select.time_begin <= ct.time_end and
+                                    to_select.time_end >= ct.time_begin
                                 ) or
                                 (
                                     ct.time_begin <= to_select.time_end and
@@ -457,26 +441,17 @@ public class MyStudentService implements StudentService {
             }
 
             // COURSE_IS_FULL
-//            String sql1 = """
-//                        with selected as (
-//                            select count(*) cnt
-//                            from course_select
-//                            group by class_id
-//                            having class_id = ?
-//                            )
-//                        select ((select selected.cnt from selected)>= classes.capacity)
-//                        from classes
-//                        where class_id = ?
-//                    """;
-//            statement = conn.prepareStatement(sql1);
-//            statement.setInt(1, sectionId);
-//            statement.setInt(2, sectionId);
-//            res = statement.executeQuery();
-//            res.next();
-//            if (res.getBoolean(1)) {
-//                enrollResult = EnrollResult.COURSE_IS_FULL;
-//                return enrollResult;
-//            }
+            String sql1 = """
+                        select (left_capacity > 0) from classes where class_id = ?
+                    """;
+            statement = conn.prepareStatement(sql1);
+            statement.setInt(1, sectionId);
+            res = statement.executeQuery();
+            res.next();
+            if (!res.getBoolean(1)) {
+                enrollResult = EnrollResult.COURSE_IS_FULL;
+                return enrollResult;
+            }
 
             //System.out.println("Success");
             enrollResult = EnrollResult.SUCCESS;
@@ -487,6 +462,15 @@ public class MyStudentService implements StudentService {
             statement = conn.prepareStatement(enrollSql);
             statement.setInt(1, studentId);
             statement.setInt(2, sectionId);
+            statement.execute();
+
+            String minusCapacity = """
+                        update classes
+                        set left_capacity = left_capacity - 1
+                        where class_id = ?
+                    """;
+            statement = conn.prepareStatement(minusCapacity);
+            statement.setInt(1, sectionId);
             statement.execute();
 
             conn.close();
@@ -522,6 +506,15 @@ public class MyStudentService implements StudentService {
             statement.setInt(1, studentId);
             statement.setInt(2, sectionId);
             statement.execute();
+
+            String addCapacity = """
+                    update classes
+                    set left_capacity = left_capacity + 1
+                    where class_id = ?
+                    """;
+            statement = conn.prepareStatement(addCapacity);
+            statement.setInt(1, sectionId);
+            statement.execute();
         } catch (SQLException e) {
             e.printStackTrace();
             throw new IllegalStateException();
@@ -531,7 +524,6 @@ public class MyStudentService implements StudentService {
     @Override
     public void addEnrolledCourseWithGrade(int studentId, int sectionId, @Nullable Grade grade) {
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
-
             String sql = """
                         insert into course_select (sid, class_id, grade)
                         values (?, ?, ?)
@@ -560,6 +552,7 @@ public class MyStudentService implements StudentService {
     }
 
     @Override
+    @ParametersAreNonnullByDefault
     public CourseTable getCourseTable(int studentId, Date date) {
         CourseTable courseTable = new CourseTable();
         try (Connection conn = SQLDataSource.getInstance().getSQLConnection()) {
@@ -578,7 +571,7 @@ public class MyStudentService implements StudentService {
                             ((select semester_begin from semester limit 1) + cast(week * 7 as integer))
                         limit 1
                     )
-                    select course_name, class_name, 
+                    select course_name, class_name,
                            teacher_id, (first_name || ' ' || last_name) as full_name,
                            weekday, time_begin, time_end,
                            location
@@ -634,10 +627,7 @@ public class MyStudentService implements StudentService {
         if (node == null)
             return true;
         if (node.getClass().equals(CoursePrerequisite.class)) {
-            if ((passedCourses.contains(((CoursePrerequisite) node).courseID)))
-                return true;
-            else
-                return false;
+            return passedCourses.contains(((CoursePrerequisite) node).courseID);
         }
         if (node.getClass().equals(OrPrerequisite.class)) {
             boolean result = false;
