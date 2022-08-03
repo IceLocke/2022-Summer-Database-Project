@@ -128,16 +128,11 @@ public class MyStudentService implements StudentService {
 
             ignoreMissingPrerequisites = !ignoreMissingPrerequisites;
 
-            int cnt = 1;
+            int cnt = 0;
 
             while (res.next() && entries.size() < pageSize) {
                 if (ignoreMissingPrerequisites ||
                         passedPrerequisitesForCourse(studentId, res.getString("course_id"), conn)) {
-                    if (cnt > pageSize + pageSize * pageIndex ||
-                            cnt <= pageSize * pageIndex) {
-                        cnt++;
-                        continue;
-                    }
 
                     // Course type part
                     String courseID = res.getString("course_id");
@@ -314,7 +309,8 @@ public class MyStudentService implements StudentService {
                     if (ignoreConflict && entry.conflictCourseNames.size() > 0)
                         continue;
                     cnt = cnt + 1;
-                    entries.add(entry);
+                    if (cnt >= pageIndex * pageSize + 1 && cnt <= (pageIndex + 1) * pageSize)
+                        entries.add(entry);
                 }
             }
             conn.close();
@@ -566,9 +562,9 @@ public class MyStudentService implements StudentService {
                     , query_week as (
                         select distinct week
                         from class_week_list
-                        where ? between
-                            ((select semester_begin from semester limit 1) + cast((week - 1) * 7 as integer)) and
-                            ((select semester_begin from semester limit 1) + cast(week * 7 as integer))
+                        where
+                            ? >= ((select semester_begin from semester limit 1) + cast((week - 1) * 7 as integer)) and
+                            ? < ((select semester_begin from semester limit 1) + cast(week * 7 as integer))
                         limit 1
                     )
                     select course_name, class_name,
@@ -591,7 +587,8 @@ public class MyStudentService implements StudentService {
             statement.setDate(1, date);
             statement.setDate(2, date);
             statement.setDate(3, date);
-            statement.setInt(4, studentId);
+            statement.setDate(4, date);
+            statement.setInt(5, studentId);
             ResultSet res = statement.executeQuery();
 
             // init table

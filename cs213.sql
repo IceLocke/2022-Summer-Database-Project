@@ -105,6 +105,7 @@ CREATE TABLE public.classes (
     course_id character varying(10),
     capacity smallint,
     semester_id integer DEFAULT 0,
+    left_capacity integer,
     CONSTRAINT classes_capacity_check CHECK ((capacity > 0))
 );
 
@@ -152,8 +153,8 @@ ALTER TABLE public.course_select OWNER TO postgres;
 
 CREATE TABLE public.course_type (
     course_id character varying(10),
-    course_type integer,
-    dept_id integer
+    type integer,
+    major_id integer
 );
 
 
@@ -436,6 +437,14 @@ ALTER TABLE ONLY public.class_timetable
 
 
 --
+-- Name: classes classes_pk; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.classes
+    ADD CONSTRAINT classes_pk UNIQUE (course_id, class_name, semester_id);
+
+
+--
 -- Name: classes classes_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -604,6 +613,14 @@ ALTER TABLE ONLY public.course_select
 
 ALTER TABLE ONLY public.course_select
     ADD CONSTRAINT course_select_sid_fkey FOREIGN KEY (sid) REFERENCES public.students(sid);
+
+
+--
+-- Name: course_type course_type_courses_course_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.course_type
+    ADD CONSTRAINT course_type_courses_course_id_fk FOREIGN KEY (course_id) REFERENCES public.courses(course_id);
 
 
 --
