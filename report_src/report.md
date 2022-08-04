@@ -1,46 +1,245 @@
 # CS213 Project Report
-by 12110631 ¹¨Áèçú
+by 12110631 é¾šå‡Œç¥
 
 ## Database Structure
 ### Task 5 Database
 ![](images/cs213project_database.png)
-ÒÔÏÂÎª±íµÄ´óÖÂ¹¦ÄÜ½éÉÜ¡£Task6Íê³ÉµÄ½Ó¿ÚÖĞ²¢Î´¸²¸Çµ½ËùÓĞµÄÏà¹Ø×Ö¶Î£¬´æÔÚÒ»¶¨Á¿µÄÈßÓàÊı¾İ£¬¿É¹©ÒÔºó½øĞĞ½Ó¿ÚÍØÕ¹¡£
+ä»¥ä¸‹ä¸ºè¡¨çš„å¤§è‡´åŠŸèƒ½ä»‹ç»ã€‚Task6å®Œæˆçš„æ¥å£ä¸­å¹¶æœªè¦†ç›–åˆ°æ‰€æœ‰çš„ç›¸å…³å­—æ®µï¼Œå­˜åœ¨ä¸€å®šé‡çš„å†—ä½™æ•°æ®ï¼Œå¯ä¾›ä»¥åè¿›è¡Œæ¥å£æ‹“å±•ã€‚
 
 | Table           | Description                                                               | Foreign Key                    |
 |-----------------|---------------------------------------------------------------------------|--------------------------------|
-| courses         | ´æ´¢Ä³¸ö¿Î³Ì£¨¶ÔÓ¦½Ó¿Ú`Course`£©µÄÏà¹ØÊı¾İ                                                 | dept_id                        |
-| classes         | ´æ´¢Ä³¸ö¿Î³Ì°à¼¶£¨¶ÔÓ¦½Ó¿Ú`CourseSection`£©µÄÏà¹ØÊı¾İ                                        | course_id, semester_id         |
-| class_timetable | ´æ´¢Ä³¸ö¿Î³Ì°à¼¶¿Î³ÌÊ±¼ä£¨¶ÔÓ¦½Ó¿Ú`courseSectionClass`£©µÄÏà¹ØÊı¾İ                               | location_id, class_id          |
-| class_teachers  | ´æ´¢Ä³¸ö¿Î³Ì°à¼¶¿Î³ÌÊ±¼äµÄÀÏÊ¦µÄÏà¹ØÊı¾İ£¬ÒÔÁªºÏÖ÷¼ü`(class_timetable_id, teacher_id)`Ô¼Êø            | class_timetable_id, teacher_id |
-| class_week_list | ´æ´¢Ä³¸ö¿Î³Ì°à¼¶¿Î³ÌÊ±¼äµÄ¶ÔÓ¦½ÌÑ§ÖÜµÄÏà¹ØÊı¾İ                                                   | class_timetable_id             |
-| students        | ´æ´¢Ñ§ÉúµÄÏà¹ØÊı¾İ                                                                 | ad_class_id, major_id, user_id |
-| course_select   | ´æ´¢Ñ§ÉúÑ¡¿ÎµÄÏà¹ØÊı¾İ                                                               | sid, class_id                  |
-| teachers        | ´æ´¢ÀÏÊ¦£¨¶ÔÓ¦½Ó¿Ú`Instructor`£©Ïà¹ØµÄÊı¾İ¡£¿¼ÂÇ½Ó¿ÚÖĞ`Instructor` ¼Ì³Ğ×Ô `User¡¤, Ö÷¼ü¼ÇÂ¼Îª `user_id` | N/A                            |  
-| ad_classes      | ´æ´¢Ñ§ÉúĞĞÕş°à¶ÔÓ¦µÄĞÅÏ¢¡£ÓÉÓÚÔ­Ê¼Êı¾İ`student.csv`ÖĞĞĞÕş°à¾ßÓĞÖĞÓ¢ÎÄÃû£¬·ÖÎªÁ½¸ö×Ö¶Î¼ÇÂ¼¡£                      | N/A                            |
-| departments     | ´æ´¢Ñ§Ğ£ÔºÏµµÄÏà¹ØÊı¾İ                                                               | N/A                            |
-| majors          | ´æ´¢Ñ§Ğ£×¨ÒµµÄÏà¹ØÊı¾İ                                                               | dept_id                        |
-| course_type     | ´æ´¢Ä³¸ö×¨Òµ»®·ÖÄ³¸ö¿Î³ÌµÄ¿Î³ÌÀàĞÍµÄÏà¹ØÊı¾İ                                                    | course_id, major_id            |
-| semesters       | ´æ´¢Ñ§ÆÚµÄÏà¹ØÊı¾İ                                                                 | N/A                            |
-| locations       | ´æ´¢µØµãµÄÏà¹ØÊı¾İ                                                                 | N/A                            |
+| courses         | å­˜å‚¨æŸä¸ªè¯¾ç¨‹ï¼ˆå¯¹åº”æ¥å£`Course`ï¼‰çš„ç›¸å…³æ•°æ®                                                 | dept_id                        |
+| classes         | å­˜å‚¨æŸä¸ªè¯¾ç¨‹ç­çº§ï¼ˆå¯¹åº”æ¥å£`CourseSection`ï¼‰çš„ç›¸å…³æ•°æ®                                        | course_id, semester_id         |
+| class_timetable | å­˜å‚¨æŸä¸ªè¯¾ç¨‹ç­çº§è¯¾ç¨‹æ—¶é—´ï¼ˆå¯¹åº”æ¥å£`courseSectionClass`ï¼‰çš„ç›¸å…³æ•°æ®                               | location_id, class_id          |
+| class_teachers  | å­˜å‚¨æŸä¸ªè¯¾ç¨‹ç­çº§è¯¾ç¨‹æ—¶é—´çš„è€å¸ˆçš„ç›¸å…³æ•°æ®ï¼Œä»¥è”åˆä¸»é”®`(class_timetable_id, teacher_id)`çº¦æŸ            | class_timetable_id, teacher_id |
+| class_week_list | å­˜å‚¨æŸä¸ªè¯¾ç¨‹ç­çº§è¯¾ç¨‹æ—¶é—´çš„å¯¹åº”æ•™å­¦å‘¨çš„ç›¸å…³æ•°æ®                                                   | class_timetable_id             |
+| students        | å­˜å‚¨å­¦ç”Ÿçš„ç›¸å…³æ•°æ®                                                                 | ad_class_id, major_id, user_id |
+| course_select   | å­˜å‚¨å­¦ç”Ÿé€‰è¯¾çš„ç›¸å…³æ•°æ®                                                               | sid, class_id                  |
+| teachers        | å­˜å‚¨è€å¸ˆï¼ˆå¯¹åº”æ¥å£`Instructor`ï¼‰ç›¸å…³çš„æ•°æ®ã€‚è€ƒè™‘æ¥å£ä¸­`Instructor` ç»§æ‰¿è‡ª `UserÂ·, ä¸»é”®è®°å½•ä¸º `user_id` | N/A                            |  
+| ad_classes      | å­˜å‚¨å­¦ç”Ÿè¡Œæ”¿ç­å¯¹åº”çš„ä¿¡æ¯ã€‚ç”±äºåŸå§‹æ•°æ®`student.csv`ä¸­è¡Œæ”¿ç­å…·æœ‰ä¸­è‹±æ–‡åï¼Œåˆ†ä¸ºä¸¤ä¸ªå­—æ®µè®°å½•ã€‚                      | N/A                            |
+| departments     | å­˜å‚¨å­¦æ ¡é™¢ç³»çš„ç›¸å…³æ•°æ®                                                               | N/A                            |
+| majors          | å­˜å‚¨å­¦æ ¡ä¸“ä¸šçš„ç›¸å…³æ•°æ®                                                               | dept_id                        |
+| course_type     | å­˜å‚¨æŸä¸ªä¸“ä¸šåˆ’åˆ†æŸä¸ªè¯¾ç¨‹çš„è¯¾ç¨‹ç±»å‹çš„ç›¸å…³æ•°æ®                                                    | course_id, major_id            |
+| semesters       | å­˜å‚¨å­¦æœŸçš„ç›¸å…³æ•°æ®                                                                 | N/A                            |
+| locations       | å­˜å‚¨åœ°ç‚¹çš„ç›¸å…³æ•°æ®                                                                 | N/A                            |
 
-½ÓÏÂÀ´¶ÔÁĞµÄÌØÊâ¿¼ÂÇ½øĞĞÃèÊö¡£
+æ¥ä¸‹æ¥å¯¹åˆ—çš„ç‰¹æ®Šè€ƒè™‘è¿›è¡Œæè¿°ã€‚
 
-- `classes.left_capacity`: ÔÚ×î¿ªÊ¼µÄÉè¼ÆÖĞ£¬¿¼ÂÇµ½Ê£Óà¿Î³ÌÈİÁ¿¿ÉÒÔÍ¨¹ı¾ÛºÏº¯Êı´Ó`course_select`ÖĞ¼ÆËãµÃ³ö£¬ÊôÓÚÅÉÉúÊôĞÔ£¬²¢Î´¿¼ÂÇÊµ¼Ê´æÔÚ¡£µ«ÔÚ½øĞĞ½Ó¿ÚÊµÏÖÊ±£¬·¢ÏÖÊµ¼ÊÉÏ`course_select`±íµÄÊı¾İÁ¿·Ç³£¾Ş´ó£¬²¢ÇÒ`addEnrolledCourseWithGrade`½Ó¿ÚµÇ¼ÇµÄÑ§Éú¿Î³Ì²»Õ¼ÓÃ¿Î³ÌÈİÁ¿£¬Ê¹ÓÃ¾ÛºÏº¯Êı½øĞĞÍ³¼ÆÊ±Ôì³ÉÁËºÜ´óµÄĞÔÄÜÆ¿¾±£¬Òò´Ë¿¼ÂÇÊ¹ÓÃ¿Õ¼ä»»È¡Ê±¼ä£¬ÔÚ½øĞĞ¿Î³ÌµÇ¼ÇµÄÊ±ºò¸üĞÂ¸Ã×Ö¶Î¡£
+- `classes.left_capacity`: åœ¨æœ€å¼€å§‹çš„è®¾è®¡ä¸­ï¼Œè€ƒè™‘åˆ°å‰©ä½™è¯¾ç¨‹å®¹é‡å¯ä»¥é€šè¿‡èšåˆå‡½æ•°ä»`course_select`ä¸­è®¡ç®—å¾—å‡ºï¼Œå±äºæ´¾ç”Ÿå±æ€§ï¼Œå¹¶æœªè€ƒè™‘å®é™…å­˜åœ¨ã€‚ä½†åœ¨è¿›è¡Œæ¥å£å®ç°æ—¶ï¼Œå‘ç°å®é™…ä¸Š`course_select`è¡¨çš„æ•°æ®é‡éå¸¸å·¨å¤§ï¼Œå¹¶ä¸”`addEnrolledCourseWithGrade`æ¥å£ç™»è®°çš„å­¦ç”Ÿè¯¾ç¨‹ä¸å ç”¨è¯¾ç¨‹å®¹é‡ï¼Œä½¿ç”¨èšåˆå‡½æ•°è¿›è¡Œç»Ÿè®¡æ—¶é€ æˆäº†å¾ˆå¤§çš„æ€§èƒ½ç“¶é¢ˆï¼Œå› æ­¤è€ƒè™‘ä½¿ç”¨ç©ºé—´æ¢å–æ—¶é—´ï¼Œåœ¨è¿›è¡Œè¯¾ç¨‹ç™»è®°çš„æ—¶å€™æ›´æ–°è¯¥å­—æ®µã€‚
 
 ### Task 1 Database
 ![](images/task1_database.png)
-Ïà±ÈTask5ÖĞµÄÊı¾İ¿â£¬Task1µÄÊı¾İ¿âÈ±ÉÙÁËÒÔÏÂ±í£º
-- semesters: Ñ§ÆÚÊı¾İ
-- majors: ×¨ÒµĞÅÏ¢
-- course_type: ×¨Òµ¶Ô¿Î³ÌµÄ·ÖÀà
+ç›¸æ¯”Task5ä¸­çš„æ•°æ®åº“ï¼ŒTask1çš„æ•°æ®åº“ç¼ºå°‘äº†ä»¥ä¸‹è¡¨ï¼š
+- semesters: å­¦æœŸæ•°æ®
+- majors: ä¸“ä¸šä¿¡æ¯
+- course_type: ä¸“ä¸šå¯¹è¯¾ç¨‹çš„åˆ†ç±»
 
-Ä³Ğ©±íÖĞÈ±Ê¡ÁËÒÔÏÂ×Ö¶Î£º
-- students: `major_id`, `first_name`, `last_name` (`name`±»ºÏ²¢Îª`student_name`), `enrolled_date`
-- teachers: `first_name`, `last_name`(`name`±»ºÏ²¢Îª`teacher_name`)
+æŸäº›è¡¨ä¸­ç¼ºçœäº†ä»¥ä¸‹å­—æ®µï¼š
+- students: `major_id`, `first_name`, `last_name` (`name`è¢«åˆå¹¶ä¸º`student_name`), `enrolled_date`
+- teachers: `first_name`, `last_name`(`name`è¢«åˆå¹¶ä¸º`teacher_name`)
 
-Í¬Ê±Ä³Ğ©±íÌí¼ÓÁËÒÔÏÂ×Ö¶Î
-- courses.course_id_suffix: ÓÉÓÚÄÏ¿Æ´ó¿Î³ÌidµÄ×ÖÄ¸Ç°×º´øÓĞ¿ª¿ÎÔºÏµĞÅÏ¢£¬¿Î³ÌidµÄÇ°×º»òĞí»á³ÉÎªÈßÓàÊı¾İ£¬ÔÚTask1Éè¼ÆÊı¾İ¿âÊ±ÎÒ³¢ÊÔ½«¿Î³Ìid²ğ·ÖÎªÔºÏµidºÍ¿Î³Ìidºó×º£¨Èç`CS102A->{dept_id: CS, course_id_suffix: 102A}`£©£¬Í¬Ê±Ê¹ÓÃÁªºÏÁªºÏÖ÷¼üÏŞÖÆ¿Î³ÌidÎ¨Ò»¡£µ«ºóĞøµÄ½Ó¿Ú¿ª·¢ÖĞ·¢ÏÖ±£Ö¤¿Î³ÌidµÄÍêÕûĞÔ¸üÓĞÖúÓÚ±àĞ´´úÂë£¬ËìÔÚTask5ĞŞ¸ÄÊı¾İ¿âµÄ¹ı³ÌÖĞ±£ÁôÁËÍêÕûµÄ`course_id`¡£
+åŒæ—¶æŸäº›è¡¨æ·»åŠ äº†ä»¥ä¸‹å­—æ®µ
+- courses.course_id_suffix: ç”±äºå—ç§‘å¤§è¯¾ç¨‹idçš„å­—æ¯å‰ç¼€å¸¦æœ‰å¼€è¯¾é™¢ç³»ä¿¡æ¯ï¼Œè¯¾ç¨‹idçš„å‰ç¼€æˆ–è®¸ä¼šæˆä¸ºå†—ä½™æ•°æ®ï¼Œåœ¨Task1è®¾è®¡æ•°æ®åº“æ—¶æˆ‘å°è¯•å°†è¯¾ç¨‹idæ‹†åˆ†ä¸ºé™¢ç³»idå’Œè¯¾ç¨‹idåç¼€ï¼ˆå¦‚`CS102A->{dept_id: CS, course_id_suffix: 102A}`ï¼‰ï¼ŒåŒæ—¶ä½¿ç”¨è”åˆè”åˆä¸»é”®é™åˆ¶è¯¾ç¨‹idå”¯ä¸€ã€‚ä½†åç»­çš„æ¥å£å¼€å‘ä¸­å‘ç°ä¿è¯è¯¾ç¨‹idçš„å®Œæ•´æ€§æ›´æœ‰åŠ©äºç¼–å†™ä»£ç ï¼Œé‚åœ¨Task5ä¿®æ”¹æ•°æ®åº“çš„è¿‡ç¨‹ä¸­ä¿ç•™äº†å®Œæ•´çš„`course_id`ã€‚
 
-´ËÍâ£¬`class_teachers`ÖĞµÄÍâ¼üÔ¼ÊøÒ²´ÓÖ¸Ïò`class_timetable_id`¸ÄÎª`class_id`£¬ÒòÎª`course_info.json`ÖĞ²¢Ã»ÓĞ¶Ô¿Î³ÌÊ±¼ä½øĞĞÀÏÊ¦µÄÇø·Ö¡£
+æ­¤å¤–ï¼Œ`class_teachers`ä¸­çš„å¤–é”®çº¦æŸä¹Ÿä»æŒ‡å‘`class_timetable_id`æ”¹ä¸º`class_id`ï¼Œå› ä¸º`course_info.json`ä¸­å¹¶æ²¡æœ‰å¯¹è¯¾ç¨‹æ—¶é—´è¿›è¡Œè€å¸ˆçš„åŒºåˆ†ã€‚
 
 ## Data Importer Design
+æˆ‘ä½¿ç”¨äº†Pythonå¼€å‘å¯¼å…¥æ•°æ®çš„è„šæœ¬ï¼Œä¸»è¦ä½¿ç”¨äº†`psycopg`æ¨¡å—è¿æ¥æ•°æ®åº“ï¼Œ`json`æ¨¡å—å¯¹`course_info.info`è¿›è¡Œè§£æï¼Œ`select_course.csv`åˆ™ç›´æ¥ä½¿ç”¨æ–‡ä»¶IOè¿›è¡Œå­—ç¬¦ä¸²å¤„ç†ã€‚
+
+è„šæœ¬åˆ†ä¸ºä¸¤ä¸ªæ¨¡å—ï¼Œ`course_import.py`å’Œ`student_import.py`ï¼Œä»¥ä¸‹ä¸ºéƒ¨åˆ†æ ¸å¿ƒä»£ç 
+
+```python
+# course_import.py
+import psycopg
+
+departments = []
+teachers = ['null']
+locations = []
+course_ids = []
+courses = []
+
+# ...
+# å¯¹jsonè¿›è¡Œæ•°æ®é¢„å¤„ç†
+
+with psycopg.connect('host=localhost port=5432 dbname=cs213project '
+                     'user=postgres password=0906KOORI') as conn:
+    with conn.cursor() as cur:
+        for i, department in enumerate(departments):
+            cur.execute("insert into departments (dept_id, department) values(%d, '%s')" %
+                        (i, department))
+
+        cur.execute("insert into teachers (user_id, first_name, last_name) values(0, null, null)")
+        for i, teacher in enumerate(teachers):
+            split_name = teacher.split(' ')
+            if len(split_name) > 1:
+                first_name = split_name[0]
+                last_name = split_name[-1]
+            else:
+                first_name = teachers[i][1:]
+                last_name = teachers[i][0]
+            cur.execute("insert into teachers "
+                        "(user_id, first_name, last_name) "
+                        "values(%d, '%s', '%s')" %
+                        (i + 1, first_name, last_name))
+
+        for i, location in enumerate(locations):
+            cur.execute("insert into locations (location_id, location) values(%d, '%s')" % (i, location))
+
+        for i, course in enumerate(courses):
+            cur.execute("insert into courses (course_id,  dept_id, "
+                        "course_name, credit, hour, prerequisite)"
+                        "values ('%s', %d, '%s', %d, %d, %s)" %
+                        (
+                            course['course_id'],
+                            course['course_dept_id'],
+                            course['course_name'],
+                            course['credit'],
+                            course['hour'],
+                            'null' if course['prerequisite'] is None else ("'%s'" % course['prerequisite']))
+                        )
+
+        tt_id = 0
+        for i in range(len(course_info)):
+            cur.execute("""
+                        insert into classes (class_id, course_id, class_name, capacity, semester_id)
+                                    values (%d, '%s', '%s', %d, %d)
+                        """ %
+                        (
+                            i,
+                            course_info[i]['courseId'],
+                            course_info[i]['className'].strip(),
+                            course_info[i]['totalCapacity'],
+                            0
+                        ))
+
+            for cl in course_info[i]['classList']:
+                cur.execute('insert into class_timetable '
+                            '(class_timetable_id, class_id, location_id, time_begin, time_end, weekday) '
+                            'values(%d, %d, %d, %d, %d, %d)' %
+                            (
+                                tt_id,
+                                i,
+                                locations.index(cl['location']),
+                                int(cl['classTime'].split('-')[0]),
+                                int(cl['classTime'].split('-')[1]),
+                                cl['weekday']
+                            ))
+                for w in cl['weekList']:
+                    cur.execute('insert into class_week_list (class_timetable_id, week) '
+                                'values(%d, %d)' %
+                                (tt_id, int(w)))
+                if course_info[i]['teacher'] is not None:
+                    t_list = course_info[i]['teacher'].strip().split(',')
+                    for t in t_list:
+                        cur.execute("insert into class_teachers "
+                                    "(class_timetable_id, teacher_id) values(%d, %d)" %
+                                    (tt_id, teachers.index(t)))
+                else:
+                    cur.execute("insert into class_teachers "
+                                "(class_timetable_id, teacher_id) values(%d, null)" % tt_id)
+                tt_id = tt_id + 1
+
+    conn.commit()
+```
+
+```python
+with open('data/select_course.csv', 'r', encoding='utf-8') as f:
+    with psycopg.connect('host=localhost port=5432 dbname=cs213project '
+                         'user=postgres password=0906KOORI') as conn:
+        lines = f.readlines(10000)
+        cur = conn.cursor()
+
+        cur.execute("select course_id as full_course_id from courses")
+        for row in cur.fetchall():
+            courses.append(row[0])
+
+        for course in courses:
+            cur.execute("select class_id from classes where course_id = '%s' limit 1" % course)
+            class_map[course] = cur.fetchone()[0]
+
+        for i, line in enumerate(lines):
+            print(i)
+            data = line.split(',')
+            cnn = data[2].split('(')[0]
+            enn = re.findall(r'\((.*?)\)', data[2])[0]
+            if cnn not in cn_name:
+                cn_name.append(cnn)
+                eng_name.append(enn)
+                try:
+                    cur.execute("insert into ad_classes (ad_class_id, ad_class_chinese_name, ad_class_english_name)"
+                                "values (%d, '%s', '%s')" %
+                                (
+                                    len(cn_name) - 1,
+                                    cnn,
+                                    enn
+                                ))
+                except psycopg.Error as e:
+                    print(e)
+            try:
+                cur.execute(("""
+                            insert into students 
+                            (first_name, last_name, gender, ad_class_id, sid, major_id, user_id)
+                            values ('%s', '%s', '%s', %d, %d, %d, %d)
+                        """ %
+                          (
+                              str(data[0][1:]),
+                              data[0][0],
+                              data[1],
+                              cn_name.index(data[2].split('(')[0]),
+                              int(data[3]),
+                              random.randint(1, 34),
+                              random.randint(1, 100)
+                          )))
+
+            except psycopg.Error as e:
+                print(e)
+            for course in data[4:]:
+                if course.strip() in courses:
+                    try:
+                        # æ·»åŠ å•æ¡é€‰è¯¾ä¿¡æ¯
+                        cur.execute("""
+                            insert into course_select (sid, class_id, grade)
+                            values(%d, '%s', %d)
+                        """ % (
+                            int(data[3]),
+                            class_map[course.strip()],
+                            random.randint(59, 100)
+                        ))
+                    except psycopg.Error as e:
+                        print(e)
+        conn.commit()
+```
+ç”±äº`course_select.csv`æ•°æ®é‡è¾ƒå¤§ï¼Œå•çº¿ç¨‹å¯¼å…¥éœ€è¦è¾ƒé•¿çš„æ—¶é—´ï¼Œæ¥è¿‘80åˆ†é’Ÿæ‰èƒ½å¯¼å…¥å®Œ480wæ¡æ•°æ®ï¼ˆDesktop PCï¼ŒCPU: R7 3700X @3.6Ghzï¼Œ8C16Tï¼ŒRAM: 8G * 2 @4000Mhzï¼‰ï¼Œè€ƒè™‘åˆ°å¯¹CPUæ ¸å¿ƒçš„å……åˆ†åˆ©ç”¨ï¼Œæˆ‘ä½¿ç”¨`thread`æ¨¡å—å¯¹äºå­¦ç”Ÿæ·»åŠ å•æ¡é€‰è¯¾ä¿¡æ¯çš„éƒ¨åˆ†è¿›è¡Œäº†å¤šçº¿ç¨‹çš„ä¼˜åŒ–ï¼Œå°†80åˆ†é’Ÿç¼©çŸ­è‡³9åˆ†é’Ÿã€‚
+
+ä»¥ä¸‹ä¸ºéƒ¨åˆ†ä¿®æ”¹ä»£ç ï¼š
+```python
+try:
+    _thread.start_new_thread(cur.execute,
+                             ("""
+                                insert into students 
+                                (first_name, last_name, gender, ad_class_id, sid, major_id, user_id)
+                                values ('%s', '%s', '%s', %d, %d, %d, %d)
+                            """ %
+                              (
+                                  str(data[0][1:]),
+                                  data[0][0],
+                                  data[1],
+                                  cn_name.index(data[2].split('(')[0]),
+                                  int(data[3]),
+                                  random.randint(1, 34),
+                                  random.randint(1, 100)
+                              ),))
+except psycopg.Error as e:
+    print(e)
+for course in data[4:]:
+    if course.strip() in courses:
+        try:
+            _thread.start_new_thread(
+                cur.execute, (f"""
+                            insert into course_select (sid, class_id, grade)
+                            values({int(data[3]):d}, '{class_map[course.strip()]}', {random.randint(59, 100):d})
+                        """,)
+            )
+        except psycopg.Error as e:
+            print(e)
+```

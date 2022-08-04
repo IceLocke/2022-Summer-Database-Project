@@ -296,7 +296,7 @@ public class MyStudentService implements StudentService {
                                             to_select.course_id = c.course_id and
                                             to_select.semester_id = c.semester_id
                                         )
-                                    where cs.sid = ?
+                                    where cs.sid = ? and to_select.semester_id = c.semester_id
                                     ) subq
                                 join classes on subq.class_id = classes.class_id
                                 join courses on classes.course_id = courses.course_id
