@@ -261,14 +261,16 @@ public class MyStudentService implements StudentService {
                                 from
                                     (
                                     with to_select as (
-                                        select c.class_id, c.course_id, time_begin, time_end, weekday, c.semester_id
-                                        from class_timetable
-                                        join classes c on class_timetable.class_id = c.class_id
+                                        select c.class_id, c.course_id, time_begin, time_end, weekday, c.semester_id, cwl.week
+                                        from class_timetable ctt
+                                        join classes c on ctt.class_id = c.class_id
+                                        join class_week_list cwl on cwl.class_timetable_id = ctt.class_timetable_id
                                         where c.class_id = ?
                                     )
                                     select distinct cs.class_id
                                     from course_select cs
                                     join class_timetable ct on cs.class_id = ct.class_id
+                                    join class_week_list cwl on cwl.class_timetable_id = ct.class_timetable_id
                                     join classes c on cs.class_id = c.class_id
                                     join to_select on
                                         (
@@ -283,7 +285,8 @@ public class MyStudentService implements StudentService {
                                                     ct.time_end >= to_select.time_begin
                                                 )
                                             ) and
-                                            to_select.semester_id = c.semester_id
+                                            to_select.semester_id = c.semester_id and
+                                            to_select.week = cwl.week
                                         ) or
                                         (
                                             to_select.course_id = c.course_id and
@@ -293,6 +296,7 @@ public class MyStudentService implements StudentService {
                                     ) subq
                                 join classes on subq.class_id = classes.class_id
                                 join courses on classes.course_id = courses.course_id
+                                order by course_name, class_name
                             """;
                     s = conn.prepareStatement(queryConflictCourses);
                     s.setInt(1, entry.section.id);
@@ -304,7 +308,6 @@ public class MyStudentService implements StudentService {
                         entry.conflictCourseNames.add("%s[%s]".formatted(
                                 conflictRes.getString("course_name"),
                                 conflictRes.getString("class_name")));
-                    entry.conflictCourseNames.sort(Comparator.naturalOrder());
                     conflictRes.close();
                     if (ignoreConflict && entry.conflictCourseNames.size() > 0)
                         continue;
@@ -396,14 +399,16 @@ public class MyStudentService implements StudentService {
             // COURSE_CONFLICT_FOUND,
             String sql5 = """
                     with to_select as (
-                        select c.class_id, c.course_id, time_begin, time_end, weekday, c.semester_id
-                        from class_timetable
-                        join classes c on class_timetable.class_id = c.class_id
+                        select c.class_id, c.course_id, time_begin, time_end, weekday, c.semester_id, cwl.week
+                        from class_timetable ctt
+                        join classes c on ctt.class_id = c.class_id
+                        join class_week_list cwl on cwl.class_timetable_id = ctt.class_timetable_id
                         where c.class_id = ?
                     )
                     select count(*)
                     from course_select cs
                     join class_timetable ct on cs.class_id = ct.class_id
+                    join class_week_list cwl on ct.class_timetable_id = cwl.class_timetable_id
                     join classes c on c.class_id = ct.class_id
                     join to_select on
                         (
@@ -418,7 +423,8 @@ public class MyStudentService implements StudentService {
                                     ct.time_end >= to_select.time_begin
                                 )
                             ) and
-                            to_select.semester_id = c.semester_id
+                            to_select.semester_id = c.semester_id and
+                            to_select.week = cwl.week
                         ) or
                         (
                             to_select.course_id = c.course_id and
