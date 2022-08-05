@@ -273,8 +273,8 @@ public class MyStudentService implements StudentService {
                                     )
                                     select distinct cs.class_id
                                     from course_select cs
-                                    join class_timetable ct on cs.class_id = ct.class_id
-                                    join class_week_list cwl on cwl.class_timetable_id = ct.class_timetable_id
+                                    left join class_timetable ct on cs.class_id = ct.class_id
+                                    left join class_week_list cwl on cwl.class_timetable_id = ct.class_timetable_id
                                     join classes c on cs.class_id = c.class_id
                                     join to_select on
                                         (
@@ -404,16 +404,16 @@ public class MyStudentService implements StudentService {
             String sql5 = """
                     with to_select as (
                         select c.class_id, c.course_id, time_begin, time_end, weekday, c.semester_id, cwl.week
-                        from class_timetable ctt
-                        join classes c on ctt.class_id = c.class_id
-                        join class_week_list cwl on cwl.class_timetable_id = ctt.class_timetable_id
+                        from classes c
+                        left join class_timetable ctt on ctt.class_id = c.class_id
+                        left join class_week_list cwl on cwl.class_timetable_id = ctt.class_timetable_id
                         where c.class_id = ?
                     )
                     select count(*)
                     from course_select cs
-                    join class_timetable ct on cs.class_id = ct.class_id
-                    join class_week_list cwl on ct.class_timetable_id = cwl.class_timetable_id
-                    join classes c on c.class_id = ct.class_id
+                    join classes c on cs.class_id = c.class_id
+                    left join class_timetable ct on c.class_id = ct.class_id
+                    left join class_week_list cwl on cwl.class_timetable_id = ct.class_timetable_id
                     join to_select on
                         (
                             to_select.weekday = ct.weekday and
